@@ -1,0 +1,280 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    overflow: hidden !important;
+    background-color: #222222;
+}
+
+/*Container*/
+.container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/*Background Image*/
+.bgimg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+}
+
+/*Title + subhead*/
+.outer {
+    display: table;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+}
+
+.middle {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.main {
+    margin-left: auto;
+    margin-right: auto;
+    width: auto;
+    text-align: center;
+}
+
+.title_text {
+    display: flex;
+    justify-content: center;
+}
+
+.sub_text {
+    display: inline-block;
+    align-self: flex-end;
+}
+
+.logo {
+    width: 12%;
+    height: 100%;
+    margin-right: 0.3%;
+    margin-top: 0.6%;
+}
+
+.title {
+    font-family: monospace, 'Times New Roman', Times, serif;
+    font-size: 50;
+    text-shadow: 2px 2px 10px #131111;
+    color: #000;
+    margin: auto 0;
+}
+
+.sub {
+    color: rgb(218, 237, 253);
+    font-size: 35;
+    text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #3200e6, 0 0 40px #2a00e6, 0 0 50px #0004e6, 0 0 60px #2300e6, 0 0 70px #3d00e6;
+}
+
+.sub2 {
+    color: rgb(218, 237, 253);
+    font-size: 20;
+    text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #3200e6, 0 0 40px #2a00e6, 0 0 50px #0004e6, 0 0 60px #2300e6, 0 0 70px #3d00e6;
+}
+
+/*Options*/
+
+.opt {
+    position: absolute;
+    z-index: 10;
+}
+
+.opt p a {
+    font-family: 'Comic Sans MS', 'Lato', 'Times New Roman';
+    font-style: oblique;
+    font-size: 2em; /*Working fine up to 1300px width*/
+    color: transparent;
+    -webkit-text-stroke: 1px rgb(255, 255, 255);;
+    cursor: pointer;
+    position: absolute;
+    z-index: 10 !important;
+    text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #3200e6, 0 0 40px #2a00e6, 0 0 50px #0004e6, 0 0 60px #2300e6, 0 0 70px #3d00e6;
+    text-align: center;
+}
+
+.opt p:hover {
+    animation: shake 1s infinite;
+}
+
+/*Subevents*/
+.subevents {
+    position: absolute;
+    display: none;
+    z-index: 10;
+    width: 0;
+}
+
+.subevents ul {
+    list-style: none;
+    position: relative;
+    bottom: 12em;
+    right: 15em;
+    width: 450px;
+    font-size: 18px;
+    color: rgb(178, 252, 248);
+    text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #3200e6, 0 0 40px #2a00e6, 0 0 50px #0004e6, 0 0 60px #2300e6, 0 0 70px #3d00e6;
+}
+
+.subevents ul li {
+    margin-bottom: 10px;
+    padding-left: 28px;
+    cursor: pointer;
+    width: 300px;
+}
+
+.subevents ul li a:hover {
+    color: rgb(4, 0, 255);
+}
+
+.glow {
+    position: absolute;
+    visibility: hidden;
+}
+
+a:link, a:visited{
+    text-decoration: none;
+    text-emphasis: none;
+    color: #fff;
+}
+
+/*Media Queries*/
+
+@media screen and (min-width: 1320px) {
+    .opt p a {
+        font-size: 2.5em;
+    }
+}
+
+@media screen and (max-width: 480px){
+    .opt p a {
+        font-size: 1.5em;
+    }
+    .title {
+        font-size: 65;
+    }
+}
+
+@media screen and (max-width: 320px){
+    .opt p a {
+        font-size: 1.3em;
+    }
+    .title {
+        font-size: 45;
+    }
+    .sub {
+        font-size: 25;
+    }
+    .sub2 {
+        font-size: 15;
+    }
+}
+
+/*Animations*/
+
+@keyframes button {
+    0% {
+        box-shadow: 0px 0px 10px 2px #004227;
+    }
+    100% {
+        box-shadow: none;
+    }
+}
+
+@keyframes bottomToTop {
+    0% {
+        clip-path: inset(100% 0% 0% 0%);
+    }
+    100% {
+        clip-path: inset(0% 0% 0% 0%);
+    }
+}
+
+@keyframes bottomToTopClose {
+    0% {
+        clip-path: inset(0% 0% 0% 0%);
+    }
+    100% {
+        clip-path: inset(100% 0% 0% 0%);
+    }
+}
+
+@keyframes leftToRight {
+    0% {
+        clip-path: inset(0% 100% 0% 0%);
+    }
+    100% {
+        clip-path: inset(0% 0% 0% 0%);
+    }
+}
+
+@keyframes leftToRightClose {
+    0% {
+        clip-path: inset(0% 0% 0% 0%);
+    }
+    100% {
+        clip-path: inset(0% 100% 0% 0%);
+    }
+}
+
+@keyframes rightToLeft {
+    0% {
+        clip-path: inset(0% 0% 0% 100%);
+    }
+    100% {
+        clip-path: inset(0% 0% 0% 0%);
+    }
+}
+
+@keyframes rightToLeftClose {
+    0% {
+        clip-path: inset(0% 0% 0% 0%);
+    }
+    100% {
+        clip-path: inset(0% 0% 0% 100%);
+    }
+}
+
+@keyframes subevents {
+    0% {
+        transform: scale(0);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes subeventsoff {
+    0% {
+        transform: scale(1);
+    }
+    100% {
+        transform: scale(0);
+    }
+}
+
+@keyframes shake {
+  0% { transform: translate(1px, 1px) rotate(0deg); }
+  10% { transform: translate(-1px, -2px) rotate(-1deg); }
+  20% { transform: translate(-3px, 0px) rotate(1deg); }
+  30% { transform: translate(3px, 2px) rotate(0deg); }
+  40% { transform: translate(1px, -1px) rotate(1deg); }
+  50% { transform: translate(-1px, 2px) rotate(-1deg); }
+  60% { transform: translate(-3px, 1px) rotate(0deg); }
+  70% { transform: translate(3px, 1px) rotate(-1deg); }
+  80% { transform: translate(-1px, -1px) rotate(1deg); }
+  90% { transform: translate(1px, 2px) rotate(0deg); }
+  100% { transform: translate(1px, -2px) rotate(-1deg); }
+}

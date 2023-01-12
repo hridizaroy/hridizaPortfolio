@@ -1,0 +1,317 @@
+<html>
+    <head>
+        <title>Hridiza's Portfolio</title>
+        <link rel = "stylesheet" href = "css/styles.css">
+        <meta charset="utf-8">
+    </head>
+    <body>
+
+        <!--
+            TODO: If user clicks on a link, the homepage should occupy half of the screen, leaving the other half for content
+            On vertical devices, I'll just have it link to a separate page
+            Iframe?
+            For every sub-part
+                - Make it column-based?
+                - Where each image zooms in when you hover over it?
+        -->
+        <div class = "container">
+            <img src = "images/pcb-min.jpg" class = "bgimg">
+
+            <div class="options">
+                <div class="opt">
+                    <p><a href="/" target="_blank">Explainer Videos</a></p>
+                </div>
+
+                <div class="opt">
+                    <p><a href="/" target="_blank">Misc</a></p>
+                </div>
+
+                <div class="opt">
+                    <p><a href="/" target="_blank">Film/Visual Projects</a></p>
+                </div>
+
+                <div class = "opt">
+                    <p><a href = "/">Programming Projects</a></p>
+                </div>
+
+                <div class="opt">
+                    <p><a href= "/" target="_blank">Links</a></p>
+                    <!--
+                        - GitHub
+                        - YouTube
+                        - Resume
+                        - Email
+                        - LinkedIn
+                    -->
+                </div>
+            </div>
+
+            <!--Glows-->
+            <img src="images/glow_1.png" class="glow">
+            <img src="images/glow_2.png" class="glow">
+            <img src="images/glow_3.png" class="glow">
+            <img src="images/glow_5.png" class="glow">
+            <img src="images/glow_6.png" class="glow">
+
+            <!--Main Text-->
+            <div class="outer">
+               <div class="middle">
+                    <div class = "main">
+                        <div class = "title_text">
+                            <p class="title" id = "test">Hridiza's Portfolio</p>
+                        </div>
+                        <p class="sub">Computer Science Student</p>
+                        <p class="sub2">Rochester Institute of Technology</p>
+                    </div>
+               </div>
+            </div>
+        </div>
+
+
+
+
+        <script>
+
+        var bgimg = document.querySelector(".bgimg");
+        var title = document.querySelector(".title");
+
+        var bgRatio = 8832/4768; //Ratio of bg image
+        var deviceRatio = innerWidth / innerHeight; //Ratio of device
+        var isFullWidth = deviceRatio >= bgRatio;
+        //var r = screen.width/screen.height;
+
+        //Clockwise starting from 12 o clock
+        //Left values when background image width = 100%
+        const fullW = [43, 72, 76.5, 9, 22];
+
+        //Top values when background image height = 100%
+        const fullH = [22, 50, 66.5, 67.2, 41.5];
+
+        //Options
+        const opts = document.getElementsByClassName("opt");
+
+        //Glows
+        const glows = document.getElementsByClassName("glow");
+
+        //Glow values when width = 100% [width, left]
+        const glowFullW = [[4.5, 47.5], [23, 78], [8.5, 91.4], [8.5, 0], [21.5, 0]];
+
+        //Glow values when height = 100% [height, top]
+        const glowFullH = [[24.3, -0.8], [8, 49.7], [8, 65.5], [6.7, 65.8], [6.7, 44]];
+
+        //Positioning elements based on aspect ratio
+        function positioning1() {
+
+            if (isFullWidth) {
+                bgimg.style.width = "100%";
+                bgimg.style.height = "auto";
+            }
+            else {
+                bgimg.style.width = "auto";
+                bgimg.style.height = "100%"
+            }
+        }
+
+        function positioning2() {
+
+            if ( isFullWidth ) {
+                var extraH = bgimg.height - innerHeight; //Height outside each border
+
+                //Shifting image up for vertically centering
+                bgimg.style.marginTop = -1 * (extraH / 2) + "px";
+
+                //Iterating through opts and setting top value by calculating
+                //(%age of image height when height = 100%) - height outside each border
+
+                if (innerWidth >= 768) {
+                    for (var i = 0; i < opts.length; i++) {
+                        opts[i].style.top = (fullH[i] * 0.01 * bgimg.height) - (extraH / 2) + "px";
+                        opts[i].style.left = fullW[i] * 0.01 * bgimg.width + "px"; //Setting left
+
+                        //If screen is not wide enough to accommodate leftmost & rightmost
+                        if (innerWidth < 992) {
+                            switch (i) {
+                                case 2:
+                                    opts[i].style.left = 70 + "%"; //Rightmost
+                                    break;
+                                case 4:
+                                    opts[i].style.left = 20 + "%"; //Leftmost
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                // Positioning glows
+                for (var i = 0; i < glowFullW.length; i++) {
+                    glows[i].style.width = glowFullW[i][0] + "%";
+                    glows[i].style.left = glowFullW[i][1] + "%";
+                    glows[i].style.top = (glowFullH[i][1] * 0.01 * bgimg.height) - (extraH / 2) + "px";
+                    glows[i].style.height = "auto";
+                }
+            }
+            else {
+                var extraW = bgimg.width - innerWidth;
+                bgimg.style.marginLeft = -1 * (extraW / 2) + "px";
+
+                if (innerWidth >= 768) {
+                    for (var i = 0; i < opts.length; i++) {
+                        opts[i].style.left = (fullW[i] * 0.01 * bgimg.width) - (extraW / 2) + "px";
+                        opts[i].style.top = fullH[i] * 0.01 * bgimg.height + "px"; //Setting top
+
+                        //If screen is not wide enough to accommodate leftmost & rightmost
+                        if (innerWidth < 992) {
+                            switch (i) {
+                                case 2:
+                                    opts[i].style.left = 65 + "%"; //Rightmost
+                                    break;
+                                case 4:
+                                    opts[i].style.left = 20 + "%"; //Leftmost
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                //Positioning glows
+                for (var i = 0; i < glowFullH.length; i++) {
+                    glows[i].style.height = glowFullH[i][0] + "%";
+                    glows[i].style.top = glowFullH[i][1] + "%";
+                    
+                    if (glowFullW[i][1] == 0) {
+                        glows[i].style.left = (1 * 0.01 * bgimg.width) - (extraW / 2) + "px";
+                    }
+                    else {
+                        glows[i].style.left = (glowFullW[i][1] * 0.01 * bgimg.width) - (extraW / 2) + "px";
+                    }
+                    glows[i].style.width = "auto";
+                }
+            }
+
+            //Small Screens
+            if (innerWidth < 768) {
+                for (var i = 0; i < opts.length; i++) {
+                    if (i == 0 || i == 3) {
+                        if (i == 0) {
+                            opts[i].style.top = 20 + "%";
+                            opts[i].style.left = 40 + "%"; //Setting left
+                        }
+                        else {
+                            opts[i].style.bottom = 20 + "%";
+                            opts[i].style.left = 43 + "%"; //Setting left
+                        }
+                    }
+                    else if (i == 1 || i == 2) {
+                        opts[i].style.left = 70 + "%";
+                    }
+                    else if (i == 4 || i == 5) {
+                        opts[i].style.left = 20 + "%";
+                    }
+
+                    if (i == 1 || i == 5) {
+                        opts[i].style.top = 10 + "%";
+                    }
+                    else if (i == 2 || i == 4) {
+                        opts[i].style.bottom = 10 + "%";
+                    }
+                }
+            }
+        }
+
+        
+        positioning1();
+
+        bgimg.onload = () => {
+            positioning2();
+        };
+
+        addEventListener("resize", positioning1);
+        addEventListener("resize", positioning2);
+
+        function glow_on(element) {
+            // Make a function that returns which quadrant?
+            // Flaw: if left and top are > 50, we get the position of the left corner, not the right corner
+            let left = (parseFloat(getComputedStyle(element).getPropertyValue("left")) / innerWidth) * 100;
+            let top = (parseFloat(getComputedStyle(element).getPropertyValue("top")) / innerHeight) * 100;
+
+            element.style.visibility = "visible";
+
+            // Quadrant 1
+            if (left < 50 && top < 50) {
+                if (left < top) {
+                    element.style.animation = "rightToLeft 1s 0s forwards";
+                }
+                else {
+                    element.style.animation = "bottomToTop 1s 0s forwards";
+                }
+            }
+            // Quadrant 2
+            else if (left < 50 && top >= 50) {
+                if (left < 100 - top) {
+                    element.style.animation = "rightToLeft 1s 0s forwards";
+                }
+                else {
+                    element.style.animation = "topToBottom 1s 0s forwards";
+                }
+            }
+            // Quadrant 3
+            else if (left >= 50 && top >= 50) {
+                if ( left > top ) {
+                    element.style.animation = "leftToRight 1s 0s forwards";
+                }
+                else {
+                    element.style.animation = "topToBottom 1s 0s forwards";
+                }
+            }
+            // Quadrant 4
+            else {
+                if (100 - left < top) {
+                    element.style.animation = "leftToRight 1s 0s forwards";
+                }
+                else {
+                    element.style.animation = "bottomToTop 1s 0s forwards";
+                }
+            }
+        }
+
+
+        function glow_off(element) {
+            let elemAnimation = getComputedStyle(element).getPropertyValue("animation").split(" ").slice(-1).pop();
+            elemAnimation += "Close";
+            element.style.animation = elemAnimation + " 0.2s 0s forwards";
+        }
+
+        
+        if (innerWidth >=  992) {
+            for (let i = 0; i < opts.length; i++) {
+                opts[i].addEventListener("mouseenter", () => {
+                    glow_on(glows[i]);
+                });
+                opts[i].addEventListener("mouseleave", () => {
+                    glow_off(glows[i]);
+                });
+            }
+        }
+
+        //checking bgimg
+
+        function testImage(url) {
+            var tester = new Image();
+            tester.addEventListener('load', imageFound);
+            tester.addEventListener('error', imageNotFound);
+            tester.src = url;
+        }
+
+        function imageFound(){
+            document.querySelector('.title').style.color = "#000";
+        }
+
+        function imageNotFound(){
+            document.querySelector('.title').style.color = "#fff";
+        }
+
+        testImage("images/pcb-min.jpg");
+
+        </script>
+    </body>
+</html>
