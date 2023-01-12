@@ -1,0 +1,78 @@
+<html>
+
+<head>
+    <title>Virtual Lab</title>
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/objects.css">
+</head>
+
+<body>
+
+    <div class="container_outer">
+        <div class="container">
+            <!--Walls-->
+            <img src="media/Walls/main_wall.svg" class="wall main_wall">
+            <img src="media/Walls/right_wall.svg" class="wall right_wall">
+            <img src="media/Walls/left_wall.svg" class="wall left_wall">
+            <img src = "media/Walls/floor.svg" class="wall floor">
+            <img src = "media/Walls/top.svg" class="wall top">
+            <img src="media/Walls/top.svg" class="wall back">
+
+            <!--Equipment-->
+            <div class="lab_stuff">
+                
+                <!--Holders-->
+                <img src="media/Lab_equip/Holder- Multiple Empty-01.svg" class="object holder_multiple_empty">
+                <img src="media/Lab_equip/Holder- Single Empty -01.svg" class="object holder_single_empty">
+                
+                <!--Test tubes-->
+                <img src="media/Lab_equip/Test tube - Clear Blue-01.svg" class="object tt_1">
+                <img src="media/Lab_equip/Test Tube - Clear Orange-01.svg" class="object tt_2">
+                <img src="media/Lab_equip/Test tube - Clear Green-01.svg" class="object tt_3">
+                
+                <!--Shelf equipment-->
+                <img src="media/Lab_equip/Beaker HCl-01.svg" class="object beaker1 beakers">
+                <img src="media/Lab_equip/Beaker H2SO4-01.svg" class="object beaker2 beakers">
+                <img src="media/Lab_equip/Beaker HNO3-01.svg" class="object beaker3 beakers">
+                <img src="media/Lab_equip/Beaker HClO3.svg" class="object beaker4 beakers">
+                <img src="media/Lab_equip/Beaker CaCl2-01.svg" class="object beaker5 beakers">
+                <img src="media/Lab_equip/Beaker NaOH-01.svg" class="object beaker6 beakers">
+                <img src="media/Lab_equip/Beaker Ca(OH)2-01.svg" class="object beaker7 beakers">
+                <img src="media/Lab_equip/Beaker KOH-01.svg" class="object beaker8 beakers">
+                <img src="media/Lab_equip/Beaker Mg(OH)2-01.svg" class="object beaker9 beakers">
+
+                <!--Other objects-->
+                <img src = "media/objects/teacher.png" class = "object teacher">
+            </div>
+        </div>
+    </div>
+
+    <!--Notes-->
+    <div class = "fixed">
+        <div class="bubble notes" contenteditable>My Notes</div>
+    </div>
+
+    <!--Movement directions-->
+    <div class="directions">
+        <div>W</div>
+        <span>A</span>
+        <span class="dirIndi">+</span>
+        <span>D</span>
+        <div>S</div>
+        <br>
+        <span class="dirIndi">Look Around:</span>
+        <br>
+        <span>Arrow keys</span>
+        <br><br>
+        <span class="dirIndi">Jump:</span>
+        <br>
+        <span>Spacebar</span>
+    </div>
+
+    <!--Game movement and object behavior-->
+    <script type="text/javascript" src = "js/objects.js"></script>
+    <script type="text/javascript" src="js/main.js"></script>
+
+</body>
+
+</html>

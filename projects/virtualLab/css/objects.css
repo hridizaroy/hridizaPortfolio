@@ -1,0 +1,225 @@
+.object {
+    position: absolute;
+    padding: 0;
+    margin: 0;
+    display: inline-block;
+}
+
+.teacher {
+    width: 18%;
+    bottom: 0;
+    left: 65%;
+}
+
+.notes {
+    position: fixed;
+    width: 30%;
+    bottom: 0;
+    right: 0;
+}
+
+.bubble {
+    position: fixed;
+    font-family: sans-serif;
+    font-size: 1.5em;
+    line-height: 24px;
+    width: 300px;
+    background: #fff;
+    border: 1px solid #000;
+    border-radius: 40px;
+    padding: 2%;
+    text-align: center;
+    color: #000;
+}
+
+
+/*Equipment*/
+
+.lab_stuff {
+    width: 150%;
+    bottom: 0;
+    left: 0;
+    transform-style: preserve-3d;
+}
+
+/*Holders*/
+.holder_multiple_empty, .holder_multiple_full  {
+    width: 18%;
+    bottom: 19.6%;
+    left: 65%;
+    z-index: 10;
+}
+
+.holder_single_empty {
+    width: 15%;
+    bottom: 19.6%;
+    left: 49%;
+    z-index: 10;    
+}
+
+/*Test tubes*/
+
+.tt_1 {
+    width: 2.8%;
+    bottom: 21.3%;
+    left: 69%;
+    padding: 0;
+    z-index: 5;
+    content: url("../media/Lab_equip/Test tube - Clear Blue-01.svg");
+}
+
+.tt_2 {
+    width: 2.8%;
+    bottom: 21.3%;
+    left: 72.5%;
+    z-index: 5;
+    content: url("../media/Lab_equip/Test Tube - Clear Orange-01.svg");
+}
+
+.tt_3 {
+    width: 2.8%;
+    bottom: 21.3%;
+    left: 76%;
+    z-index: 5;
+    content: url("../media/Lab_equip/Test tube - Clear Green-01.svg");
+}
+
+/*Shelf equipment*/
+
+.beaker1{
+    width: 7%;
+    bottom: 32%;
+    left: 9%;
+    z-index: 5;
+}
+
+.beaker2 {
+    width: 7%;
+    bottom: 32%;
+    left: 17%;
+    z-index: 5;
+}
+
+.beaker3 {
+    width: 7%;
+    bottom: 32%;
+    left: 25%;
+    z-index: 5;  
+}
+
+.beaker4 {
+    width: 7%;
+    bottom: 17.5%;
+    left: 9%;
+    z-index: 5; 
+}
+
+.beaker5 {
+    width: 7%;
+    bottom: 17.5%;
+    left: 18%;
+    z-index: 5;    
+}
+
+.beaker6 {
+    width: 7%;
+    bottom: 17.5%;
+    left: 26%;
+    z-index: 5;     
+}
+
+.beaker7 {
+    width: 7%;
+    bottom: 4%;
+    left: 8%;
+    z-index: 5;   
+}
+
+.beaker8 {
+    width: 7%;
+    bottom: 4%;
+    left: 17%;
+    z-index: 5;   
+}
+
+.beaker9 {
+    width: 7%;
+    bottom: 4%;
+    left: 27%;
+    z-index: 5; 
+}
+
+/* Directions */
+
+.directions {
+    position: fixed;
+    top: 1%;
+    left: 1%;
+    text-align: center;
+    font-size: 1.4em;
+}
+
+.dirIndi {
+    font-weight: bold;
+}
+
+/* Animations */
+
+/*Test tube animations*/
+
+@keyframes tt1 {
+    0% {
+        opacity: 1;
+        content: url("../media/Lab_equip/Test tube - Clear Blue-01.svg");
+    }
+    50% {
+        opacity: 0;
+    }
+    100% {
+        content: url("../media/Lab_equip/Test tubes - Blue-01.svg");
+        opacity: 1;
+    }
+}
+
+@keyframes tt2 {
+    0% {
+        content: url("../media/Lab_equip/Test Tube - Clear Orange-01.svg");
+        opacity: 1;
+    }
+    50% {
+        opacity: 0;
+    }
+    100% {
+        content: url("../media/Lab_equip/Test tubes - Orange-01.svg");
+        opacity: 1;
+    }
+}
+
+@keyframes tt3 {
+    0% {
+        content: url("../media/Lab_equip/Test tube - Clear Green-01.svg");
+        opacity: 1;
+    }
+    50% {
+        opacity: 0;
+    }
+    100% {
+        content: url("../media/Lab_equip/Test Tubes-Green-01.svg");
+        opacity: 1;
+    }
+}
+
+/*Holder animation*/
+@keyframes holder_single {
+    0% {
+        content: url("../media/Lab_equip/Holder- Single Empty -01.svg");
+        opacity: 1;
+    }
+    50% {
+        opacity: 0;
+    }
+    100% {
+        content: url("../media/Lab_equip/Holder- single-01.svg");
+        opacity: 1;
+    }
+}

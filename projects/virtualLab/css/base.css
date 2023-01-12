@@ -1,0 +1,67 @@
+/* Global variables */
+:root {
+    --wall_size: 150%;
+}
+
+body {
+    overflow: hidden;
+    color: #fff;
+    background-color: #000;
+}
+
+/* Main CSS */
+.container_outer {
+    transform-style: preserve-3d;
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+}
+
+.container {
+    transform-style: preserve-3d;
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+}
+
+.wall {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    width: var(--wall_size);
+    display: inline-block;
+}
+
+.right_wall {
+    transform: rotateY(90deg);
+    transform-origin: 100% 50% 0;
+}
+
+.left_wall {
+    transform: rotateY(-90deg);
+    transform-origin: 0% 50% 0;
+}
+
+.floor {
+    transform: rotateX(-90deg);
+    transform-origin: 50% 100% 0;
+}
+
+.top {
+    transform: rotateX(90deg);
+    transform-origin: 50% 0% 0;
+}
+
+/* Items */
+.lab_stuff {
+    width: var(--wall_size);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+    transform-style: preserve-3d;
+}
