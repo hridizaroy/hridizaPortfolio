@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="fonts/flaticon/font/flaticon.css">
   <link rel="stylesheet" href="css/aos.css">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/customStyles.css">
 
   <title>Hridiza Roy Work Experience</title>
 </head>
@@ -94,8 +95,6 @@
   </nav>
 
 
-
-
   <div class="untree_co-section pb-0" id="home-section">
     <div class="container">
       <div class="row justify-content-center text-center">
@@ -104,59 +103,34 @@
         </div>
       </div>
     </div>
-  </div>
+  </div>   
+
 
   <!--Work Experience-->
   <div class="untree_co-section untree_co-section-4 pb-0"  id="portfolio-section">
-    <div class="container">
-      <div class="portfolio-single-wrap unslate_co--section">
-
-        <div class="portfolio-single-inner">
-          <h2 class="heading-portfolio-single-h3 text-black gsap-reveal-hero pb-5">Physics and Math Tutor</h2>
-
-          <div class="row mb-5 align-items-stretch">
-
-            <div class="col-lg-12 pl-lg-5">
-              <div class="row mb-3">
-                <div class="col-sm-6 col-md-6 col-lg-6 mb-4">
-                  <div class="detail-v1">
-                    <span class="detail-label">Date</span>
-                    <span class="detail-val">Jan 2023 - Present</span>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-md-6 col-lg-6 mb-4">
-                  <div class="detail-v1">
-                    <span class="detail-label">Employer</span>
-                    <span class="detail-val"><a href="#">Rochester Institute of Technology</a></span>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-md-6 col-lg-6 mb-4">
-                  <div class="detail-v1">
-                    <span class="detail-label">Department</span>
-                    <span class="detail-val">Academic Success Center</span>
-                  </div>
-                </div>
-                <div class="col-sm-6 col-md-6 col-lg-6 mb-4">
-                  <div class="detail-v1">
-                    <span class="detail-label">Location</span>
-                    <span class="detail-val">Rochester, New York</span>
-                  </div>
-                </div>
-              </div>
-
-              <ul>
-                <li>Tutor students in Physics and Math concepts like Gravitation, Electricity, Calculus, Linear Algebra, and Statistics</li>
-              </ul>
-
-            </div>
-
-          </div>
-        </div>
+    <div class="container" id = "filtersContainer">
+      <!--Filters-->
+      <div>
+        <span><strong>Filter:</strong></span>
+        <input class="filterCheckbox" id = "programmingCheckbox" type="checkbox" /> Programming
+        <input class="filterCheckbox" id = "graphicsCheckbox" type="checkbox" /> Computer Graphics
+        <input class="filterCheckbox" id = "filmCheckbox" type="checkbox" /> Film
+        <input class="filterCheckbox" id = "miscCheckbox" type="checkbox" /> Miscellaneous
+      </div>
+      <br>
+      <div>
+        <span><strong>Filter-type:</strong></span>
+        <span>Or</span>
+        <label class="orAndToggle">
+          <input type="checkbox" id = "orAndToggleCheckbox" />
+          <span class = "slider"></span>
+        </label>
+        <span>And</span>
       </div>
     </div>
 
     <div class="site-footer pb-0">
-      <div class="container">
+      <div class="container items">
 
         <div class="row">
           <div class="col-lg-4">
@@ -228,6 +202,7 @@
     <script src="js/ScrollMagic.min.js"></script>
     <script src="js/scrollmagic.animation.gsap.min.js"></script>
     <script src="js/jquery.csv.min.js"></script>
+    <script src="js/jquery.demano.js"></script>
 
 
     <script src="js/custom.js"></script>

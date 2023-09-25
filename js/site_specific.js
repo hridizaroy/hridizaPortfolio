@@ -1,6 +1,13 @@
 // Get Experiences data
 var experiencesFile = "data/experiences.csv";
 
+const Categories = {
+    Programming: "Programming",
+    Graphics: "Graphics",
+    Film: "Film",
+    Misc: "Misc"
+};
+
 fetch(experiencesFile)
     .then(response => response.text())
     .then(text =>
@@ -8,6 +15,12 @@ fetch(experiencesFile)
         var experiencesData = text.toString();
 
         var data = $.csv.toObjects(experiencesData);
+
+        var accordion = document.createElement("div");
+        accordion.className = "custom-accordion";
+        accordion.id = "experiencesAccordion";
+
+        var index = 1;
 
         // Iterate through experiences and create html elements
         data.forEach(element =>
@@ -86,7 +99,145 @@ fetch(experiencesFile)
             layer2.appendChild(dataContainerOuter);
             layer1.appendChild(layer2);
 
-            // Add experience to portfolio section
-            document.querySelector("#portfolio-section .container").appendChild(layer1);
+            // Create Accordion Item
+            var accordionID = "accordion" + index;
+
+            var accordionItem = document.createElement("div");
+            accordionItem.className = "accordion-item experience";
+
+            var categories = [];
+
+            // TODO: Find a better way to check if these attributes are active
+            if (element.Programming == "TRUE")
+            {
+                categories.push(Categories.Programming);
+            }
+            if (element.Graphics == "TRUE")
+            {
+                categories.push(Categories.Graphics);
+            }
+            if (element.Film == "TRUE")
+            {
+                categories.push(Categories.Film);
+            }
+            if (element.Miscellaneous == "TRUE")
+            {
+                categories.push(Categories.Misc);
+            }
+
+            accordionItem.setAttribute("data-categories", categories);
+
+            var accordionHeading = document.createElement("h2");
+            accordionHeading.className = "mb-0";
+
+            var accordionButton = document.createElement("button");
+            accordionButton.className = "btn btn-link";
+            accordionButton.type = "button";
+            accordionButton.setAttribute("data-toggle", "collapse");
+            accordionButton.setAttribute("data-target", "#" + accordionID);
+            accordionButton.ariaExpanded = "true";
+            accordionButton.setAttribute("aria-controls", accordionID);
+            accordionButton.innerHTML = element.Title;
+
+            var accordionDataContainer = document.createElement("div");
+            accordionDataContainer.id = accordionID;
+            accordionDataContainer.className = "collapse show";
+            accordionDataContainer.setAttribute("data-parent", "#" + accordion.id);
+            accordionDataContainer.setAttribute("aria-labelledBy", "headingOne");
+
+            var accordionData = document.createElement("div");
+            accordionData.className = "accordion-body";
+            accordionData.appendChild(dataContainerOuter);
+
+            accordionDataContainer.appendChild(accordionData);
+            accordionHeading.appendChild(accordionButton);
+            
+            accordionItem.appendChild(accordionHeading);
+            accordionItem.appendChild(accordionDataContainer)
+
+            accordion.appendChild(accordionItem);
+
+            index++;
         });
+
+        // Add experience to portfolio section
+        document.querySelector("#portfolio-section .container").appendChild(accordion);
     });
+
+document.querySelectorAll(".filterCheckbox").forEach((elem) =>
+{
+    elem.addEventListener("change", filterCheckboxHandler);
+});
+
+document.querySelector("#orAndToggleCheckbox").addEventListener("change", filterCheckboxHandler);
+
+
+function filterCheckboxHandler()
+{
+    var programmingCheckbox = document.getElementById("programmingCheckbox");
+    var graphicsCheckbox = document.getElementById("graphicsCheckbox");
+    var filmCheckbox = document.getElementById("filmCheckbox");
+    var miscCheckbox = document.getElementById("miscCheckbox");
+
+    var orAndToggleCheckbox = document.getElementById("orAndToggleCheckbox");
+
+    var categoryCheckbox = new Object();
+
+    categoryCheckbox[Categories.Programming] = programmingCheckbox;
+    categoryCheckbox[Categories.Graphics] = graphicsCheckbox;
+    categoryCheckbox[Categories.Film] = filmCheckbox;
+    categoryCheckbox[Categories.Misc] = miscCheckbox;
+
+    // if all are unchecked, show all experiences
+    if (!programmingCheckbox.checked && !graphicsCheckbox.checked && !filmCheckbox.checked && !miscCheckbox.checked)
+    {
+        document.querySelectorAll(".experience").forEach(elem =>
+            {
+                elem.style.display = "block";
+            });
+    }
+    else
+    {
+        document.querySelectorAll(".experience").forEach(elem =>
+            {
+                var categories = elem.getAttribute("data-categories");
+    
+                var categoriesList = categories.split(",");
+
+                var showExperience = false;
+
+                if (orAndToggleCheckbox.checked)
+                {
+                    showExperience = true;
+
+                    Object.entries(Categories).forEach(categoryPair =>
+                        {
+                            category = categoryPair[1];
+                            if ((categoryCheckbox[category].checked && !categoriesList.includes(category)))
+                            {
+                                showExperience = false;
+                            }
+                        });
+                }
+                else
+                {
+                    categoriesList.forEach(category =>
+                        {
+                            if (categoryCheckbox[category].checked)
+                            {
+                                showExperience = true;
+                            }
+                        });
+                }
+    
+                if (showExperience)
+                {
+                    elem.style.display = "block";
+                }
+                else
+                {
+                    elem.style.display = "none";
+                }
+            });
+    }
+}
