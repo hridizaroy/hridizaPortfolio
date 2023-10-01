@@ -52,7 +52,8 @@ fetch(experiencesFile)
                 {label:"Location", value:element.Location}
             ];
 
-            var points = [element.Point_1, element.Point_2, element.Point_3];
+            // TODO: Get Points
+            var points = eval(element.Points);
 
             cols.forEach(colData =>
             {
@@ -120,7 +121,7 @@ fetch(experiencesFile)
             {
                 categories.push(Categories.Film);
             }
-            if (element.Miscellaneous == "TRUE")
+            if (categories.length == 0)
             {
                 categories.push(Categories.Misc);
             }

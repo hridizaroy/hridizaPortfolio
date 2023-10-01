@@ -46,13 +46,11 @@ fetch(experiencesFile)
 
             // Store columns in a list for easier iteration
             var cols = [
-                {label:"Date", value:element.Date},
-                {label:"Employer", value: "<a href = \"#\">" + element.Employer + "</a>"},
-                {label:"Department", value:element.Department},
-                {label:"Location", value:element.Location}
+                {label:"Technologies", value:element.Technologies},
+                {label:"Links", value:element.Links}
             ];
 
-            var points = [element.Point_1, element.Point_2, element.Point_3];
+            var points = eval(element.Points);
 
             cols.forEach(colData =>
             {
@@ -120,7 +118,7 @@ fetch(experiencesFile)
             {
                 categories.push(Categories.Film);
             }
-            if (element.Miscellaneous == "TRUE")
+            if (categories.length == 0)
             {
                 categories.push(Categories.Misc);
             }
