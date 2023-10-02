@@ -47,7 +47,8 @@ fetch(experiencesFile)
             // Store columns in a list for easier iteration
             var cols = [
                 {label:"Technologies", value:element.Technologies},
-                {label:"Links", value:element.Links}
+                {label:"Links", value:element.Links},
+                {label:"Type", value:element.Type}
             ];
 
             var points = eval(element.Points);

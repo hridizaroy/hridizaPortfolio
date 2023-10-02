@@ -242,3 +242,5 @@ function filterCheckboxHandler()
             });
     }
 }
+
+// TODO: Error handling for csv rows
