@@ -244,3 +244,5 @@ function filterCheckboxHandler()
 }
 
 // TODO: Error handling for csv rows
+// TODO: Potentially, colon or semi-colon separate values for lists as csv values
+// TODO: Put projects and work experience on main page, they're kind of hidden right now
