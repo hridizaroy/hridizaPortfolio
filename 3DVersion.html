@@ -1,0 +1,115 @@
+\<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script>
+        let scene, camera, renderer, controls, bird;
+
+        function init() {
+            scene = new THREE.Scene();
+
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 45, 30000);
+            camera.position.set(0, 2, 5);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Load the bird model
+            const loader = new THREE.GLTFLoader();
+            loader.load('./models/Bird.glb', function (gltf) {
+                bird = gltf.scene;
+                bird.position.set(10, 50, 300);
+                bird.rotation.y = Math.PI/3;
+                bird.rotation.x = Math.PI/4;
+                bird.scale.set(100, 100, 100); // Adjust scale if necessary
+                scene.add(bird);
+                render(); // Render scene after bird is loaded
+            }, undefined, function (error) {
+                console.error(error);
+            });
+
+            setupLights(); // Setup lights
+            setupSkybox(); // Setup skybox
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.minPolarAngle = 0; // radians
+            controls.maxPolarAngle = 2 * Math.PI; // radians (180 degrees)
+            controls.enableZoom = false;
+            controls.addEventListener("change", render);
+
+            window.addEventListener('resize', onWindowResize, false);
+
+            animate();
+        }
+
+        function setupLights() {
+            const light = new THREE.AmbientLight(0xffffff, 1);
+            scene.add(light);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            directionalLight.position.set(0, 1, 0);
+            scene.add(directionalLight);
+        }
+
+        function setupSkybox() {
+            const materialArray = [];
+            const texture_ft = new THREE.TextureLoader().load("images/3D/meadow_ft.jpg");
+            const texture_bk = new THREE.TextureLoader().load("images/3D/meadow_bk.jpg");
+            const texture_up = new THREE.TextureLoader().load("images/3D/meadow_up.jpg");
+            const texture_dn = new THREE.TextureLoader().load("images/3D/meadow_dn.jpg");
+            const texture_rt = new THREE.TextureLoader().load("images/3D/meadow_rt.jpg");
+            const texture_lf = new THREE.TextureLoader().load("images/3D/meadow_lf.jpg");
+
+            materialArray.push(new THREE.MeshBasicMaterial({ map: texture_ft }));
+            materialArray.push(new THREE.MeshBasicMaterial({ map: texture_bk }));
+            materialArray.push(new THREE.MeshBasicMaterial({ map: texture_up }));
+            materialArray.push(new THREE.MeshBasicMaterial({ map: texture_dn }));
+            materialArray.push(new THREE.MeshBasicMaterial({ map: texture_rt }));
+            materialArray.push(new THREE.MeshBasicMaterial({ map: texture_lf }));
+
+            for (let ii = 0; ii < 6; ii++) {
+                materialArray[ii].side = THREE.BackSide;
+            }
+
+            const skyboxGeo = new THREE.BoxGeometry(10000, 10000, 10000);
+            const skybox = new THREE.Mesh(skyboxGeo, materialArray);
+            scene.add(skybox);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            render(); // Render again on window resize
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Update controls
+        }
+
+        function render() {
+            renderer.render(scene, camera); // Render scene
+        }
+
+        init(); // Initialize the scene
+    </script>
+</body>
+</html>
