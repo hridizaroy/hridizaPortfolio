@@ -8,6 +8,8 @@ const Categories = {
     Misc: "Misc"
 };
 
+// TODO: Add ability to show thumbnails
+
 fetch(experiencesFile)
     .then(response => response.text())
     .then(text =>
