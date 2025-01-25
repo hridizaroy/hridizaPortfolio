@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Illumination Assignments</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar a {
+            color: #ffffff;
+            text-decoration: none;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 20%;
+            background-color: #2d2d2d;
+            color: #fff;
+            overflow-y: auto;
+            padding: 20px 0;
+            height: 100%;
+            position: fixed;
+        }
+
+        .sidebar h2 {
+            color: #fff;
+            font-size: 18px;
+            margin-left: 20px;
+        }
+
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar ul li {
+            margin: 5px 0;
+            padding: 5px 20px;
+            cursor: pointer;
+        }
+
+        .sidebar ul li:hover {
+            background-color: #444;
+        }
+
+        /* Main Content */
+        .main-content {
+            background-color: #f9f9f9;
+            padding: 20px;
+            display: none;
+            width: 80%;
+            position: absolute;
+            right: 0;
+        }
+
+        .main-content.visible {
+            display: block;
+        }
+
+        .main-content h1 {
+            font-size: 24px;
+        }
+
+        .main-content p {
+            font-size: 16px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Global Illumination</h2>
+        <ul>
+            <li>
+                <a href="#assignment1" class="sidebar-link"><span class="toggle">+</span> Assignment 1</a>
+            </li>
+            <!-- <li>
+                <a href="#assignment2" class="sidebar-link"><span class="toggle">+</span> Assignment 2</a>
+            </li>
+            <li>
+                <a href="#assignment3" class="sidebar-link"><span class="toggle">+</span> Assignment 3</a>
+            </li> -->
+        </ul>
+    </div>
+
+    <div class="main-content" id="assignment1">
+        <h1>Assignment 1</h1>
+        <p>Team members: N/A</p>
+        <div>
+            <img src = "images/assn1.jpg" width="80%">
+        </div>
+        <h3>Scene parameters (Right-handed coordinate system, +Y is up)</h3>
+        <p>Sphere 1</p>
+        <ul>
+            <li>Location: 9.11, 1.63, -1.352</li>
+            <li>Scale: 1, 1, 1</li>
+        </ul>
+        <p>Sphere 2</p>
+        <ul>
+            <li>Location: 11.361, 2.447, -0.124</li>
+            <li>Scale: 0.927, 0.927, 0.927</li>
+        </ul>
+        <p>Floor</p>
+        <ul>
+            <li>Location: 0, 0, -1.446</li>
+            <li>Scale: 24.169, 17.169, 9.034</li>
+        </ul>
+        <p>Light source</p>
+        <ul>
+            <li>Location: 17.74, 14.996, 0.913</li>
+        </ul>
+        <p>Camera</p>
+        <ul>
+            <li>Location: 16.687, 2.639, -0.573</li>
+        </ul>
+        
+    </div>
+
+    <!-- <div class="main-content" id="assignment2">
+        <h1>Assignment 2</h1>
+        <p>Details for Assignment 2 go here. Provide an explanation or tasks related to this assignment.</p>
+    </div>
+
+    <div class="main-content" id="assignment3">
+        <h1>Assignment 3</h1>
+        <p>Details for Assignment 3 go here. Provide an explanation or tasks related to this assignment.</p>
+    </div> -->
+
+    <script>
+        // Set up the sidebar item click event
+        document.querySelectorAll('.sidebar .sidebar-link').forEach(link => {
+            link.addEventListener('click', function () {
+                // Get the target section ID from the href link (after the #)
+                const targetId = this.getAttribute('href').substring(1);
+
+                // Hide all main content sections
+                document.querySelectorAll('.main-content').forEach(content => {
+                    content.classList.remove('visible');
+                });
+
+                // Show the selected main content
+                const targetContent = document.getElementById(targetId);
+                targetContent.classList.add('visible');
+            });
+        });
+
+        // Check for the hash in the URL to load the correct content when the page is first loaded
+        window.addEventListener('load', function () {
+            const hash = window.location.hash.substring(1);  // Get the part after '#'
+            if (hash) {
+                const targetContent = document.getElementById(hash);
+                if (targetContent) {
+                    targetContent.classList.add('visible');
+                }
+            } else {
+                // If no hash, show the default content (e.g., Assignment 1)
+                document.getElementById('assignment1').classList.add('visible');
+            }
+        });
+    </script>
+</body>
+</html>
