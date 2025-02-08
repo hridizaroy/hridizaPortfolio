@@ -100,6 +100,12 @@ export class Renderer
                 // TODO: Is using a TS var here okay?
                 const MAX_SIZE = ${this.MAX_SIZE};
 
+                struct Ray
+                {
+                    origin: vec3f,
+                    dir: vec3f
+                }
+
                 struct Scene
                 {
                     numObjects : u32,
@@ -112,18 +118,18 @@ export class Renderer
 
                 struct Sphere
                 {
-                    center: f32,
+                    center: vec3f,
                     radius: f32
                 };
 
                 struct Plane
                 {
-                    center: f32
+                    center: vec3f
                 };
 
                 struct Cone
                 {
-                    center: f32
+                    center: vec3f
                 };
 
                 @vertex
@@ -133,10 +139,58 @@ export class Renderer
                     return vec4f(pos, 0.0f, 1.0f);
                 }
 
-                @fragment
-                fn fragmentMain() -> @location(0) vec4f
+                fn sphereRayIntersectDist(ray: Ray, sphere: Sphere) -> f32
                 {
-                    return vec4f(1.0f, 0.0f, 0.0f, 1.0f);
+                    var raySphereToCam: vec3f = ray.origin - sphere.center;
+
+                    var a : f32 = dot(ray.dir, ray.dir);
+                    var b : f32= 2.0f * dot(ray.dir, raySphereToCam);
+                    var c : f32 = dot(raySphereToCam, raySphereToCam) - sphere.radius * sphere.radius;
+                    var discriminant = b * b - 4.0f * a * c;
+            
+                    if (discriminant < 0.0f)
+                    {
+                        return discriminant;
+                    }
+            
+                    var closestT: f32 = (-b - sqrt(discriminant)) / (2.0f * a);
+            
+                    // Make sure that the hit is in front of the camera
+                    return select(-1.0f, closestT, closestT > 0.0f);
+                }
+
+                @fragment
+                fn fragmentMain(@builtin(position) fragCoord: vec4f)
+                    -> @location(0) vec4f
+                {
+                    // NOTE: +Y is towards the bottom of the screen
+                    let resolution = vec2f(500.0, 500.0);
+                    let aspect = resolution.x / resolution.y;
+                    let uv : vec2f = (fragCoord.xy / resolution.y) * 2.0f - 1.0f;
+
+                    // Temp
+                    var sphere: Sphere;
+                    sphere.radius = 1.0f;
+                    sphere.center = vec3f(0.5f, 0.9f, 3.0f);
+
+                    var eye: vec3f = vec3f(0.0f, 0.0f, -3.0f);
+
+                    var nearClipPlaneZ = 0.5f;
+
+                    var rayDir : vec3f = normalize(vec3f(uv, nearClipPlaneZ));
+
+                    var ray: Ray;
+                    ray.origin = eye;
+                    ray.dir = rayDir;
+
+                    var hitDist = sphereRayIntersectDist(ray, sphere);
+
+                    if (hitDist > 0.0f)
+                    {
+                        return vec4f(1.0f, 0.0f, 0.0f, 1.0f);
+                    }
+
+                    return vec4f(0.0f, 0.0f, 0.0f, 1.0f);
                 }
                 `
             });
