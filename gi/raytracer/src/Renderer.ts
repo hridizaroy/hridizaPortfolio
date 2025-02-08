@@ -199,7 +199,7 @@ export class Renderer
                     var cam: Camera;
                     cam.imageHeight = resolution.y;
                     cam.imageWidth = resolution.x;
-                    cam.focalLength = 1.0f;
+                    cam.focalLength = 35.0f;
                     cam.filmPlaneHeight = 25.0f;
                     cam.filmPlaneWidth = 25.0f;
 
@@ -210,16 +210,16 @@ export class Renderer
                                     (fragCoord.y - resolution.y * 0.5f) * h)
                                     + vec2f(0.5f * w, 0.5f * h);
 
-                    var eye = vec3f(100.0f, -80.0f, -10.0f);
+                    var eye = vec3f(16.687, -2.639, 0.573);
 
                     // Temp
                     var sphere: Sphere;
-                    sphere.radius = 2.8f;
-                    sphere.center = vec3f(100.0f, -80.0f, -2.0f);
+                    sphere.radius = 1.0f;
+                    sphere.center = vec3f(9.11, -1.63, 1.352);
 
                     var sphere2: Sphere;
-                    sphere2.radius = 10.0f;
-                    sphere2.center = vec3f(70.0f, -80.0f, 10.0f);
+                    sphere2.radius = 0.927f;
+                    sphere2.center = vec3f(11.361, -2.447, 0.124);
 
                     var view = viewTransformMatrix(
                         eye,
@@ -228,9 +228,6 @@ export class Renderer
                     );
 
                     var rayDir : vec3f = normalize(vec3f(pixelVal, cam.focalLength));
-                    // var rayDir : vec3f = normalize(vec3f(uv, cam.focalLength));
-
-                    // return vec4f(rayDir, 1.0f);
 
                     var ray: Ray;
                     ray.origin = vec3f(0.0f);
@@ -239,15 +236,8 @@ export class Renderer
                     sphere.center = (view * vec4f(sphere.center, 1.0f)).xyz;
                     sphere2.center = (view * vec4f(sphere2.center, 1.0f)).xyz;
 
-                    // return vec4f((sphere.center.z) * 0.85, 0.0f, 0.0f, 1.0f);
-
                     var hitDist1 = sphereRayIntersectDist(ray, sphere);
                     var hitDist2 = sphereRayIntersectDist(ray, sphere2);
-
-                    // if (hitDist2 > 0.0f)
-                    // {
-                    //     return vec4f(0.0f, 0.8f, 0.0f, 1.0f);
-                    // }
 
                     if (hitDist1 > 0.0f && hitDist2 > 0.0f)
                     {
