@@ -197,11 +197,19 @@ export class Renderer
 
 
                     var cam: Camera;
+
+                    // pixels
                     cam.imageHeight = resolution.y;
                     cam.imageWidth = resolution.x;
-                    cam.focalLength = 35.0f;
+
+                    // TODO: Is the focal length okay?
+                    // Look into projection matrix/perspective logic?
+                    // Should I be checking for intersections "only past the focal plane"?
                     cam.filmPlaneHeight = 25.0f;
                     cam.filmPlaneWidth = 25.0f;
+
+                    let fov = 5.0f;
+                    cam.focalLength = (cam.filmPlaneHeight / 2.0f)/tan(radians(fov/2));
 
 
                     let w : f32 = cam.filmPlaneWidth/cam.imageWidth;
@@ -210,16 +218,16 @@ export class Renderer
                                     (fragCoord.y - resolution.y * 0.5f) * h)
                                     + vec2f(0.5f * w, 0.5f * h);
 
-                    var eye = vec3f(16.687, -2.639, 0.573);
+                    var eye = vec3f(389.486, -1.855, 0.573);
 
                     // Temp
                     var sphere: Sphere;
-                    sphere.radius = 1.0f;
-                    sphere.center = vec3f(9.11, -1.63, 1.352);
+                    sphere.radius = 6.0f;
+                    sphere.center = vec3f(6.11, 5.0, 6.0);
 
                     var sphere2: Sphere;
-                    sphere2.radius = 0.927f;
-                    sphere2.center = vec3f(11.361, -2.447, 0.124);
+                    sphere2.radius = 8.0f;
+                    sphere2.center = vec3f(11.361, -2.813, 0.124);
 
                     var view = viewTransformMatrix(
                         eye,
@@ -239,7 +247,8 @@ export class Renderer
                     var hitDist1 = sphereRayIntersectDist(ray, sphere);
                     var hitDist2 = sphereRayIntersectDist(ray, sphere2);
 
-                    if (hitDist1 > 0.0f && hitDist2 > 0.0f)
+                    if (hitDist1 >= cam.focalLength 
+                        && hitDist2 >= cam.focalLength)
                     {
                         if (hitDist1 < hitDist2)
                         {
@@ -248,11 +257,11 @@ export class Renderer
 
                         return vec4f(0.8f, 0.0f, 0.0f, 1.0f);
                     }
-                    else if (hitDist1 > 0.0f)
+                    else if (hitDist1 >= cam.focalLength )
                     {
                         return vec4f(0.0f, 0.8f, 0.0f, 1.0f);
                     }
-                    else if (hitDist2 > 0.0f)
+                    else if (hitDist2 >= cam.focalLength)
                     {
                         return vec4f(0.8f, 0.0f, 0.0f, 1.0f);
                     }
