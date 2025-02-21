@@ -119,18 +119,26 @@ export class Renderer
                 struct Sphere
                 {
                     center: vec3f,
-                    radius: f32
+                    radius: f32,
+                    color: vec3f
                 };
 
-                // struct Plane
-                // {
-                //     center: vec3f
-                // };
-
-                struct Cone
+                struct Triangle
                 {
-                    center: vec3f
-                };
+                    v0: vec3f,
+                    v1: vec3f,
+                    v2: vec3f,
+                    color: vec3f
+                }
+
+                // struct Quad
+                // {
+                //     v0: vec3f,
+                //     v1: vec3f,
+                //     v2: vec3f,
+                //     v3: vec3f,
+                //     color: vec3f
+                // };
 
                 struct Camera
                 {
@@ -164,6 +172,132 @@ export class Renderer
                     );
                 }
 
+
+                struct Quad
+                {
+                    v0: vec3<f32>, // First vertex (corner of the quad)
+                    v1: vec3<f32>, // Second vertex
+                    v2: vec3<f32>, // Third vertex
+                    v3: vec3<f32>, // Fourth vertex
+                    normal: vec3<f32>, // Normal to the plane,
+                    color: vec3<f32>
+                };
+
+                fn intersect_ray_plane(ray: Ray, plane_point: vec3<f32>, plane_normal: vec3<f32>) -> f32 {
+                    let denom = dot(plane_normal, ray.dir);
+                    
+                    if abs(denom) < 1e-6 {
+                        return -1.0; // Ray is parallel to the plane, no intersection
+                    }
+                    
+                    let t = dot(plane_normal, plane_point - ray.origin) / denom;
+                    
+                    if t < 0.0 {
+                        return -1.0; // Intersection is behind the ray origin, invalid
+                    }
+                    
+                    return t; // Return the distance along the ray to the intersection point
+                }
+
+
+                fn is_point_inside_quad(point: vec3<f32>, quad: Quad) -> bool {
+                    // Barycentric coordinates or point-in-polygon test (for a quadrilateral)
+                    
+                    // Calculate vectors for the quadrilateral edges
+                    let v0v1 = quad.v1 - quad.v0;
+                    let v0v3 = quad.v3 - quad.v0;
+                    let v0p = point - quad.v0;
+                    let v1v2 = quad.v2 - quad.v1;
+                    let v1p = point - quad.v1;
+                    
+                    // Use dot products to check if the point is inside the quad
+                    let d00 = dot(v0v1, v0v1);
+                    let d01 = dot(v0v1, v0v3);
+                    let d11 = dot(v0v3, v0v3);
+                    let d20 = dot(v0p, v0v1);
+                    let d21 = dot(v0p, v0v3);
+                    let d02 = dot(v1v2, v1v2);
+                    let d12 = dot(v1v2, v1p);
+                    
+                    // Calculate barycentric coordinates
+                    let denom = d00 * d11 - d01 * d01;
+                    let alpha = (d11 * d20 - d01 * d21) / denom;
+                    let beta = (d00 * d21 - d01 * d20) / denom;
+                
+                    // The point is inside the quad if alpha and beta are between 0 and 1
+                    return alpha >= 0.0 && beta >= 0.0 && (alpha + beta) <= 1.0;
+                }
+                
+                fn intersect_ray_quad(ray: Ray, quad: Quad) -> f32 {
+                    // First, find the intersection with the plane of the quad
+                    let hitDist = intersect_ray_plane(ray, quad.v0, quad.normal);
+                    
+                    if hitDist < 0.0 {
+                        return -1.0; // No intersection, or intersection behind the ray origin
+                    }
+                    
+                    // Now calculate the intersection point
+                    let intersection_point = ray.origin + hitDist * ray.dir;
+                    
+                    // Check if the intersection point lies inside the quad
+                    if is_point_inside_quad(intersection_point, quad) {
+                        return hitDist; // Return the distance to the intersection point
+                    }
+                    
+                    return -1.0; // The point is outside the quad, no valid intersection
+                }
+
+
+                fn triangleRayIntersectDist(ray: Ray, triangle: Triangle) -> f32
+                {
+                    // Compute the plane's normal
+                    // Note: We reverse the cross product order to account for +Y being downwards
+                    var v0v1 : vec3f = triangle.v1 - triangle.v0;
+                    var v0v2 : vec3f = triangle.v2 - triangle.v0;
+                    var N : vec3f = cross(v0v2, v0v1); // Reversed order
+                 
+                    // Check if the ray and plane are parallel
+                    var NdotRayDirection : f32 = dot(N, ray.dir);
+                    if (abs(NdotRayDirection) < 0.0005) // Almost 0
+                    {
+                        return -1.0; // They are parallel, so they don't intersect!
+                    }
+                
+                    // Compute d parameter
+                    var d : f32 = -dot(N, triangle.v0);
+                    
+                    // Compute t
+                    var t = -(dot(N, ray.origin) + d) / NdotRayDirection;
+                    
+                    // Check if the triangle is behind the ray
+                    if (t < 0.0)
+                    {
+                        return -1.0; // The triangle is behind
+                    }
+                 
+                    // Compute the intersection point
+                    var P: vec3f = ray.origin + t * ray.dir;
+                 
+                    // Inside-Outside Test
+                    var edge0 = triangle.v1 - triangle.v0;
+                    var edge1 = triangle.v2 - triangle.v1;
+                    var edge2 = triangle.v0 - triangle.v2;
+                    
+                    var C0 = P - triangle.v0;
+                    var C1 = P - triangle.v1;
+                    var C2 = P - triangle.v2;
+                    
+                    // Note: We reverse the cross product order here as well
+                    if (dot(N, cross(edge0, C0)) > 0.0 &&
+                        dot(N, cross(edge1, C1)) > 0.0 &&
+                        dot(N, cross(edge2, C2)) > 0.0)
+                    {
+                        return t; // The ray hits the triangle
+                    }
+                
+                    return -1.0; // The ray doesn't hit the triangle
+                }
+
                 fn sphereRayIntersectDist(ray: Ray, sphere: Sphere) -> f32
                 {
                     var raySphereToCam: vec3f = ray.origin - sphere.center;
@@ -195,7 +329,6 @@ export class Renderer
                     let aspect = resolution.x / resolution.y;
                     let uv : vec2f = (fragCoord.xy / resolution.y) * 2.0f - 1.0f;
 
-
                     var cam: Camera;
 
                     // pixels
@@ -219,15 +352,33 @@ export class Renderer
                                     + vec2f(0.5f * w, 0.5f * h);
 
                     var eye = vec3f(389.486, -1.855, 0.573);
+                    // var eye = vec3f(0.0, 0.0, -500.0f);
 
                     // Temp
                     var sphere: Sphere;
                     sphere.radius = 6.0f;
                     sphere.center = vec3f(6.11, 5.0, 6.0);
+                    sphere.color = vec3f(0.0f, 0.8f, 0.0f);
 
                     var sphere2: Sphere;
                     sphere2.radius = 8.0f;
                     sphere2.center = vec3f(11.361, -2.813, 0.124);
+                    sphere2.color =  vec3f(0.8f, 0.0f, 0.0f);
+
+                    let quad = Quad(
+                        vec3<f32>(110.0, 20.0f, 6000.0), // First vertex of the quad
+                        vec3<f32>( 0.0, 20.0f, -1500.0), // Second vertex
+                        vec3<f32>( -110.0, 20.0f,  -2000.0), // Third vertex
+                        vec3<f32>(-110.0, 20.0f,  8000.0), // Fourth vertex
+                        vec3<f32>(0.0, -1.0, 0.0),    // Normal vector of the plane (pointing up,
+                        vec3<f32>(0.1f, 0.1f, 0.8f) // color
+                    );
+
+                    var triangle: Triangle;
+                    triangle.v0 = vec3f(-100.0, 100.0, 100.0);
+                    triangle.v1 = vec3f(100.0, 100.0, 100.0);
+                    triangle.v2 = vec3f(0.0, -100.0, 100.0);
+                    triangle.color = vec3f(0.0f, 0.0f, 1.0f);
 
                     var view = viewTransformMatrix(
                         eye,
@@ -244,29 +395,44 @@ export class Renderer
                     sphere.center = (view * vec4f(sphere.center, 1.0f)).xyz;
                     sphere2.center = (view * vec4f(sphere2.center, 1.0f)).xyz;
 
-                    var hitDist1 = sphereRayIntersectDist(ray, sphere);
-                    var hitDist2 = sphereRayIntersectDist(ray, sphere2);
+                    var hitDist1 = max(0.0f, sphereRayIntersectDist(ray, sphere));
+                    var hitDist2 = max(0.0f, sphereRayIntersectDist(ray, sphere2));
+                    var hitDist3 = max(0.0f, intersect_ray_quad(ray, quad));
 
-                    if (hitDist1 >= cam.focalLength 
-                        && hitDist2 >= cam.focalLength)
+                    var dist: array<f32, 3> = array<f32, 3>(hitDist1, hitDist2, hitDist3);
+
+                    var minDist: f32 = 10000.0f;
+                    var minIdx: i32 = -1;
+
+                    for (var ii: i32; ii < 3; ii++)
                     {
-                        if (hitDist1 < hitDist2)
+                        if (dist[ii] < minDist && dist[ii] > cam.focalLength)
                         {
-                            return vec4f(0.0f, 0.8f, 0.0f, 1.0f);
+                            minDist = dist[ii];
+                            minIdx = ii;
                         }
-
-                        return vec4f(0.8f, 0.0f, 0.0f, 1.0f);
-                    }
-                    else if (hitDist1 >= cam.focalLength )
-                    {
-                        return vec4f(0.0f, 0.8f, 0.0f, 1.0f);
-                    }
-                    else if (hitDist2 >= cam.focalLength)
-                    {
-                        return vec4f(0.8f, 0.0f, 0.0f, 1.0f);
                     }
 
-                    return vec4f(0.0f, 0.0f, 0.0f, 1.0f);
+                    var returnColor: vec3f;
+
+                    if (minIdx == -1)
+                    {
+                        returnColor = vec3f(0.0f, 0.0f, 0.0f);
+                    }
+                    else if (minIdx == 0)
+                    {
+                        returnColor = sphere.color;
+                    }
+                    else if (minIdx == 1)
+                    {
+                        returnColor = sphere2.color;
+                    }
+                    else
+                    {
+                        returnColor = quad.color;
+                    }
+
+                    return vec4f(returnColor, 1.0f);
                 }
                 `
             });
