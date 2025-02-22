@@ -499,14 +499,14 @@ export class Renderer
                         illumData.R = reflect(illumData.S, illumData.normal);
                         illumData.H = (illumData.S + illumData.normal)/2.0f;
 
-                        var ke: f32 = 50.0f;
+                        var ke: f32 = 100.0f;
                         var irradiance: vec3f;
                         irradiance = light.ka * returnColor * ambientColor
                                         + light.kd * light.color * returnColor * dot(illumData.S, illumData.normal)
-                                        + light.ks * light.color * specularColor * pow(max(dot(illumData.R, illumData.V), 0.0f), ke);
+                                        + light.ks * light.color * specularColor * pow(max(dot(illumData.H, illumData.normal), 0.0f), ke);
 
                         irradiance += light.kd * light2.color * returnColor * dot(illumData.S, illumData.normal)
-                        + light.ks * light2.color * specularColor * pow(max(dot(illumData.R, illumData.V), 0.0f), ke);
+                        + light.ks * light2.color * specularColor * pow(max(dot(illumData.H, illumData.normal), 0.0f), ke);
 
                         return vec4f(irradiance, 1.0f);
                     }
@@ -548,30 +548,6 @@ export class Renderer
 
                     let w : f32 = cam.filmPlaneWidth/cam.imageWidth;
                     let h : f32 = cam.filmPlaneHeight/cam.imageHeight;
-
-                    // let pixelVal1 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
-                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
-                    //                 + vec2f(0.1f * w, 0.1f * h);
-                    // let pixelVal2 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
-                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
-                    //                 + vec2f(0.9f * w, 0.1f * h);
-                    // let pixelVal3 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
-                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
-                    //                 + vec2f(0.9f * w, 0.9f * h);
-
-                    // let pixelVal4 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
-                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
-                    //                 + vec2f(0.1f * w, 0.9f * h);
-
-                    // let pixelVal5 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
-                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
-                    //                 + vec2f(0.5f * w, 0.5f * h);
-
-                    // var color: vec4f = getReturnColor(pixelVal5, cam);
-                    // color += getReturnColor(pixelVal2, cam);
-                    // color += getReturnColor(pixelVal3, cam);
-                    // color += getReturnColor(pixelVal4, cam);
-                    // color += getReturnColor(pixelVal5, cam);
 
                     var color: vec4f = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
 
