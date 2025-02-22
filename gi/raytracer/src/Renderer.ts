@@ -333,39 +333,8 @@ export class Renderer
                     V: vec3f
                 }
 
-                @fragment
-                fn fragmentMain(@builtin(position) fragCoord: vec4f)
-                    -> @location(0) vec4f
+                fn getReturnColor(pixelVal: vec2f, cam: Camera) -> vec4f
                 {
-                    // NOTE: +Y is towards the bottom of the screen
-
-                    // TODO: Making everything square for now, but will need to deal with aspect ratios later
-                    let resolution = vec2f(500.0f, 500.0f);
-                    let aspect = resolution.x / resolution.y;
-                    let uv : vec2f = (fragCoord.xy / resolution.y) * 2.0f - 1.0f;
-
-                    var cam: Camera;
-
-                    // pixels
-                    cam.imageHeight = resolution.y;
-                    cam.imageWidth = resolution.x;
-
-                    // TODO: Is the focal length okay?
-                    // Look into projection matrix/perspective logic?
-                    // Should I be checking for intersections "only past the focal plane"?
-                    cam.filmPlaneHeight = 25.0f;
-                    cam.filmPlaneWidth = 25.0f;
-
-                    let fov = 5.0f;
-                    cam.focalLength = (cam.filmPlaneHeight / 2.0f)/tan(radians(fov/2));
-
-
-                    let w : f32 = cam.filmPlaneWidth/cam.imageWidth;
-                    let h : f32 = cam.filmPlaneHeight/cam.imageHeight;
-                    let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
-                                    (fragCoord.y - resolution.y * 0.5f) * h)
-                                    + vec2f(0.5f * w, 0.5f * h);
-
                     var eye = vec3f(389.486, -1.855, 0.573);
                     // var eye = vec3f(0.0, 0.0, -500.0f);
 
@@ -429,7 +398,6 @@ export class Renderer
                     }
 
                     var returnColor: vec3f;
-
                     
                     var ambientColor = vec3f(0.78f, 0.91f, 1.0f);
                     var specularColor = vec3f(1.0f, 1.0f, 1.0f);
@@ -452,6 +420,10 @@ export class Renderer
                      * Send in scene data from CPU side code
                      * 
                      * Reduce if statements to optimize shader
+                     * 
+                     * Rename color to irradiance where applicable
+                     * 
+                     * Store illum model constants in object
                      */
 
                     var light: Light;
@@ -461,7 +433,11 @@ export class Renderer
                     light.ka = 0.1f;
                     light.kd = 0.8f;
                     light.ks = 0.1f;
-                    
+
+                    var light2: Light;
+                    light2.position = vec3f(0.0f, -50.0, 30.0);
+                    light2.intensity = 3.0f;
+                    light2.color = vec3f(0.0f, 1.0f, 0.0f);
 
                     var newRay: Ray;
                     newRay.origin = ray.origin + minDist * ray.dir;
@@ -529,10 +505,90 @@ export class Renderer
                                         + light.kd * light.color * returnColor * dot(illumData.S, illumData.normal)
                                         + light.ks * light.color * specularColor * pow(max(dot(illumData.R, illumData.V), 0.0f), ke);
 
+                        irradiance += light.kd * light2.color * returnColor * dot(illumData.S, illumData.normal)
+                        + light.ks * light2.color * specularColor * pow(max(dot(illumData.R, illumData.V), 0.0f), ke);
+
                         return vec4f(irradiance, 1.0f);
                     }
 
                     return vec4f(light.ka * returnColor * ambientColor, 1.0f);
+                }
+
+                fn random(seed: f32) -> f32
+                {
+                    return fract(sin(seed) * 43758.5453);  // Simple pseudo-random number
+                }
+
+                @fragment
+                fn fragmentMain(@builtin(position) fragCoord: vec4f)
+                    -> @location(0) vec4f
+                {
+                    // NOTE: +Y is towards the bottom of the screen
+
+                    // TODO: Making everything square for now, but will need to deal with aspect ratios later
+                    let resolution = vec2f(500.0f, 500.0f);
+                    let aspect = resolution.x / resolution.y;
+                    let uv : vec2f = (fragCoord.xy / resolution.y) * 2.0f - 1.0f;
+
+                    var cam: Camera;
+
+                    // pixels
+                    cam.imageHeight = resolution.y;
+                    cam.imageWidth = resolution.x;
+
+                    // TODO: Is the focal length okay?
+                    // Look into projection matrix/perspective logic?
+                    // Should I be checking for intersections "only past the focal plane"?
+                    cam.filmPlaneHeight = 25.0f;
+                    cam.filmPlaneWidth = 25.0f;
+
+                    let fov = 5.0f;
+                    cam.focalLength = (cam.filmPlaneHeight / 2.0f)/tan(radians(fov/2));
+
+
+                    let w : f32 = cam.filmPlaneWidth/cam.imageWidth;
+                    let h : f32 = cam.filmPlaneHeight/cam.imageHeight;
+
+                    // let pixelVal1 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
+                    //                 + vec2f(0.1f * w, 0.1f * h);
+                    // let pixelVal2 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
+                    //                 + vec2f(0.9f * w, 0.1f * h);
+                    // let pixelVal3 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
+                    //                 + vec2f(0.9f * w, 0.9f * h);
+
+                    // let pixelVal4 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
+                    //                 + vec2f(0.1f * w, 0.9f * h);
+
+                    // let pixelVal5 = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
+                    //                 + vec2f(0.5f * w, 0.5f * h);
+
+                    // var color: vec4f = getReturnColor(pixelVal5, cam);
+                    // color += getReturnColor(pixelVal2, cam);
+                    // color += getReturnColor(pixelVal3, cam);
+                    // color += getReturnColor(pixelVal4, cam);
+                    // color += getReturnColor(pixelVal5, cam);
+
+                    var color: vec4f = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
+
+                    var numIters: f32 = 1.0f;
+                    for (var ii: f32 = 0.0f; ii < numIters; ii += 1.0f)
+                    {
+                        var xVal: f32 = random(ii * 2.0f);
+                        var yVal: f32 = random(ii * 2.0f + 1.0f);
+
+                        let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+                                    (fragCoord.y - resolution.y * 0.5f) * h)
+                                    + vec2f(0.1 * w, 0.1 * h);
+                        
+                        color += getReturnColor(pixelVal, cam);
+                    }
+
+                    return color/numIters;                    
                 }
                 `
             });
