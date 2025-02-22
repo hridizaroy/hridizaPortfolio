@@ -119,18 +119,17 @@ export class Renderer
                 struct Sphere
                 {
                     center: vec3f,
-                    radius: f32
+                    radius: f32,
+                    color: vec3f
                 };
 
-                // struct Plane
-                // {
-                //     center: vec3f
-                // };
-
-                struct Cone
+                struct Triangle
                 {
-                    center: vec3f
-                };
+                    v0: vec3f,
+                    v1: vec3f,
+                    v2: vec3f,
+                    color: vec3f
+                }
 
                 struct Camera
                 {
@@ -150,53 +149,29 @@ export class Renderer
                     return vec4f(pos, 0.0f, 1.0f);
                 }
 
-                fn viewTransformMatrix(eye: vec3f, lookAt: vec3f, up: vec3f) -> mat4x4<f32>
+                fn viewTransformMatrix(eye: vec3f, lookAt: vec3f, down: vec3f) -> mat4x4<f32>
                 {
-                    var n = normalize(lookAt - eye);
-                    var u = normalize(cross(up, -n));
-                    var v = normalize(cross(n, u));
+                    var forward = normalize(lookAt - eye);
+                    var right = normalize(cross(down, forward));
+                    var d = normalize(cross(right, -forward));
 
                     return mat4x4<f32>(
-                        u.x, v.x, n.x, 0.0f,
-                        u.y, v.y, n.y, 0.0f,
-                        u.z, v.z, n.z, 0.0f,
-                        -dot(eye, u), -dot(eye, v), -dot(eye, n), 1.0f
+                        right.x, d.x, forward.x, 0.0f,
+                        right.y, d.y, forward.y, 0.0f,
+                        right.z, d.z, forward.z, 0.0f,
+                        -dot(eye, right), -dot(eye, d), -dot(eye, forward), 1.0f
                     );
                 }
 
-                fn sphereRayIntersectDist(ray: Ray, sphere: Sphere) -> f32
+
+                struct Quad
                 {
-                    var raySphereToCam: vec3f = ray.origin - sphere.center;
-
-                    var a : f32 = dot(ray.dir, ray.dir);
-                    var b : f32 = 2.0f * dot(ray.dir, raySphereToCam);
-                    var c : f32 = dot(raySphereToCam, raySphereToCam) - sphere.radius * sphere.radius;
-                    var discriminant = b * b - 4.0f * a * c;
-
-                    if (discriminant < 0.0f)
-                    {
-                        return -1.0f;
-                    }
-
-                    var closestT: f32 = (-b - sqrt(discriminant)) / (2.0f * a);
-
-                    // Make sure that the hit is in front of the camera
-                    return select(-1.0f, closestT, closestT > 0.0f);
-                }
-
-
-                // TODO: Redo
-                struct Plane {
-                    point: vec3<f32>, // A point on the plane
-                    normal: vec3<f32>, // The normal to the plane
-                };
-
-                struct Quad {
                     v0: vec3<f32>, // First vertex (corner of the quad)
                     v1: vec3<f32>, // Second vertex
                     v2: vec3<f32>, // Third vertex
                     v3: vec3<f32>, // Fourth vertex
-                    normal: vec3<f32>, // Normal to the plane
+                    normal: vec3<f32>, // Normal to the plane,
+                    color: vec3<f32>
                 };
 
                 fn intersect_ray_plane(ray: Ray, plane_point: vec3<f32>, plane_normal: vec3<f32>) -> f32 {
@@ -263,47 +238,285 @@ export class Renderer
                     return -1.0; // The point is outside the quad, no valid intersection
                 }
 
-                struct Cylinder {
-                    radius: f32,    // Radius of the cylinder
-                    height: f32,    // Height of the cylinder (the cylinder extends from -height/2 to +height/2 along the Y-axis)
-                    center: vec3<f32>, // Center of the cylinder (in this case, it will be aligned with Y-axis)
-                };
 
-                fn intersect_ray_cylinder(ray: Ray, cylinder: Cylinder) -> f32 {
-                    // Compute the direction and origin of the ray with respect to the cylinder's position
-                    let ray_origin = ray.origin - cylinder.center;  // Translate the ray origin to the cylinder's local space
-                
-                    // Ray direction components
-                    let a = ray.dir.x * ray.dir.x + ray.dir.z * ray.dir.z;
-                    let b = 2.0 * (ray_origin.x * ray.dir.x + ray_origin.z * ray.dir.z);
-                    let c = ray_origin.x * ray_origin.x + ray_origin.z * ray_origin.z - cylinder.radius * cylinder.radius;
-                
-                    // Solve the quadratic equation: a*t^2 + b*t + c = 0
-                    let discriminant = b * b - 4.0 * a * c;
-                
-                    if discriminant < 0.0 {
-                        return -1.0; // No intersection
+                fn triangleRayIntersectDist(ray: Ray, triangle: Triangle) -> f32
+                {
+                    // Compute the plane's normal
+                    // Note: We reverse the cross product order to account for +Y being downwards
+                    var v0v1 : vec3f = triangle.v1 - triangle.v0;
+                    var v0v2 : vec3f = triangle.v2 - triangle.v0;
+                    var N : vec3f = cross(v0v2, v0v1); // Reversed order
+                 
+                    // Check if the ray and plane are parallel
+                    var NdotRayDirection : f32 = dot(N, ray.dir);
+                    if (abs(NdotRayDirection) < 0.0005) // Almost 0
+                    {
+                        return -1.0; // They are parallel, so they don't intersect!
                     }
                 
-                    // Compute the two possible intersection distances (t1, t2)
-                    let sqrt_discriminant = sqrt(discriminant);
-                    let t1 = (-b - sqrt_discriminant) / (2.0 * a);
-                    let t2 = (-b + sqrt_discriminant) / (2.0 * a);
-                
-                    // Check if the intersection points are within the cylinder's height
-                    // The cylinder's height extends from -height/2 to +height/2 along the Y-axis
-                    let y1 = ray.origin.y + t1 * ray.dir.y;
-                    let y2 = ray.origin.y + t2 * ray.dir.y;
-                
-                    if (y1 >= -cylinder.height / 2.0 && y1 <= cylinder.height / 2.0) {
-                        return t1; // First intersection is valid
+                    // Compute d parameter
+                    var d : f32 = -dot(N, triangle.v0);
+                    
+                    // Compute t
+                    var t = -(dot(N, ray.origin) + d) / NdotRayDirection;
+                    
+                    // Check if the triangle is behind the ray
+                    if (t < 0.0)
+                    {
+                        return -1.0; // The triangle is behind
+                    }
+                 
+                    // Compute the intersection point
+                    var P: vec3f = ray.origin + t * ray.dir;
+                 
+                    // Inside-Outside Test
+                    var edge0 = triangle.v1 - triangle.v0;
+                    var edge1 = triangle.v2 - triangle.v1;
+                    var edge2 = triangle.v0 - triangle.v2;
+                    
+                    var C0 = P - triangle.v0;
+                    var C1 = P - triangle.v1;
+                    var C2 = P - triangle.v2;
+                    
+                    // Note: We reverse the cross product order here as well
+                    if (dot(N, cross(edge0, C0)) > 0.0 &&
+                        dot(N, cross(edge1, C1)) > 0.0 &&
+                        dot(N, cross(edge2, C2)) > 0.0)
+                    {
+                        return t; // The ray hits the triangle
                     }
                 
-                    if (y2 >= -cylinder.height / 2.0 && y2 <= cylinder.height / 2.0) {
-                        return t2; // Second intersection is valid
+                    return -1.0; // The ray doesn't hit the triangle
+                }
+
+                fn sphereRayIntersectDist(ray: Ray, sphere: Sphere) -> f32
+                {
+                    var raySphereToCam: vec3f = ray.origin - sphere.center;
+
+                    var a : f32 = dot(ray.dir, ray.dir);
+                    var b : f32 = 2.0f * dot(ray.dir, raySphereToCam);
+                    var c : f32 = dot(raySphereToCam, raySphereToCam) - sphere.radius * sphere.radius;
+                    var discriminant = b * b - 4.0f * a * c;
+
+                    if (discriminant < 0.0f)
+                    {
+                        return -1.0f;
                     }
-                
-                    return -1.0; // No intersection within the cylinder's height
+
+                    var closestT: f32 = (-b - sqrt(discriminant)) / (2.0f * a);
+
+                    // Make sure that the hit is in front of the camera
+                    return select(-1.0f, closestT, closestT > 0.0f);
+                }
+
+                fn reflect(I: vec3<f32>, N: vec3<f32>) -> vec3<f32>
+                {
+                    return I - 2.0 * dot(I, N) * N;
+                }
+
+                struct Light
+                {
+                    position: vec3f,
+                    intensity: f32,
+                    color: vec3f,
+                    ka: f32,
+                    kd: f32,
+                    ks: f32
+                }
+
+                struct IllumData
+                {
+                    normal: vec3f,
+                    S: vec3f,
+                    R: vec3f,
+                    H: vec3f,
+                    V: vec3f
+                }
+
+                fn getReturnColor(pixelVal: vec2f, cam: Camera) -> vec4f
+                {
+                    var eye = vec3f(389.486, -1.855, 0.573);
+                    // var eye = vec3f(0.0, 0.0, -500.0f);
+
+                    // Temp
+                    var sphere: Sphere;
+                    sphere.radius = 6.0f;
+                    sphere.center = vec3f(6.11, 5.0, 6.0);
+                    sphere.color = vec3f(0.0f, 0.8f, 0.0f);
+
+                    var sphere2: Sphere;
+                    sphere2.radius = 8.0f;
+                    sphere2.center = vec3f(11.361, -2.813, 0.124);
+                    sphere2.color =  vec3f(0.8f, 0.0f, 0.0f);
+
+                    let quad = Quad(
+                        vec3<f32>(110.0, 20.0f, 6000.0), // First vertex of the quad
+                        vec3<f32>( 0.0, 20.0f, -1500.0), // Second vertex
+                        vec3<f32>( -110.0, 20.0f,  -2000.0), // Third vertex
+                        vec3<f32>(-110.0, 20.0f,  8000.0), // Fourth vertex
+                        vec3<f32>(0.0, -1.0, 0.0),    // Normal vector of the plane (pointing up,
+                        vec3<f32>(0.1f, 0.1f, 0.8f) // color
+                    );
+
+                    var triangle: Triangle;
+                    triangle.v0 = vec3f(-100.0, 100.0, 100.0);
+                    triangle.v1 = vec3f(100.0, 100.0, 100.0);
+                    triangle.v2 = vec3f(0.0, -100.0, 100.0);
+                    triangle.color = vec3f(0.0f, 0.0f, 1.0f);
+
+                    var view = viewTransformMatrix(
+                        eye,
+                        sphere2.center,
+                        vec3f(0.0f, 1.0f, 0.0f)
+                    );
+
+                    var rayDir : vec3f = normalize(vec3f(pixelVal, cam.focalLength));
+
+                    var ray: Ray;
+                    ray.origin = vec3f(0.0f);
+                    ray.dir = rayDir;
+
+                    sphere.center = (view * vec4f(sphere.center, 1.0f)).xyz;
+                    sphere2.center = (view * vec4f(sphere2.center, 1.0f)).xyz;
+
+                    var hitDist1 = max(0.0f, sphereRayIntersectDist(ray, sphere));
+                    var hitDist2 = max(0.0f, sphereRayIntersectDist(ray, sphere2));
+                    var hitDist3 = max(0.0f, intersect_ray_quad(ray, quad));
+
+                    var dist: array<f32, 3> = array<f32, 3>(hitDist1, hitDist2, hitDist3);
+
+                    var minDist: f32 = 10000.0f;
+                    var minIdx: i32 = -1;
+
+                    for (var ii: i32; ii < 3; ii++)
+                    {
+                        if (dist[ii] < minDist && dist[ii] > cam.focalLength)
+                        {
+                            minDist = dist[ii];
+                            minIdx = ii;
+                        }
+                    }
+
+                    var returnColor: vec3f;
+                    
+                    var ambientColor = vec3f(0.78f, 0.91f, 1.0f);
+                    var specularColor = vec3f(1.0f, 1.0f, 1.0f);
+
+                    if (minIdx == -1)
+                    {
+                        return vec4f(ambientColor, 1.0f);
+                    }
+
+                    /** TODO
+                     * Create a struct for payload with intersection point, 
+                     * intersection distance, normal etc.
+                     * 
+                     * Create a struct for representing scene objects
+                     * 
+                     * Handle the object hit identification more cleanly
+                     * 
+                     * Create a function for a shadow ray
+                     * 
+                     * Send in scene data from CPU side code
+                     * 
+                     * Reduce if statements to optimize shader
+                     * 
+                     * Rename color to irradiance where applicable
+                     * 
+                     * Store illum model constants in object
+                     */
+
+                    var light: Light;
+                    light.position = vec3f(0.0f, -30.0, -20.0);
+                    light.intensity = 3.0f;
+                    light.color = vec3f(1.0f, 1.0f, 1.0f);
+                    light.ka = 0.1f;
+                    light.kd = 0.8f;
+                    light.ks = 0.1f;
+
+                    var light2: Light;
+                    light2.position = vec3f(0.0f, -50.0, 30.0);
+                    light2.intensity = 3.0f;
+                    light2.color = vec3f(0.0f, 1.0f, 0.0f);
+
+                    var newRay: Ray;
+                    newRay.origin = ray.origin + minDist * ray.dir;
+                    newRay.dir = normalize(light.position - newRay.origin);
+
+                    if (minIdx == 0)
+                    {
+                        returnColor = sphere.color;
+                        newRay.origin += normalize(newRay.origin - sphere.center) * 0.001;
+                    }
+                    else if (minIdx == 1)
+                    {
+                        returnColor = sphere2.color;
+                        newRay.origin += normalize(newRay.origin - sphere2.center) * 0.001;
+                    }
+                    else
+                    {
+                        returnColor = quad.color;
+                        newRay.origin += vec3f(0.0f, -0.1, 0.0f);
+                    }
+
+                    var lightHitDist = max(0.0f, length(light.position - newRay.origin));
+                    hitDist1 = max(0.0f, sphereRayIntersectDist(newRay, sphere));
+                    hitDist2 = max(0.0f, sphereRayIntersectDist(newRay, sphere2));
+                    hitDist3 = max(0.0f, intersect_ray_quad(newRay, quad));
+
+                    var dist2: array<f32, 4> = array<f32, 4>(hitDist1, hitDist2, hitDist3, lightHitDist);
+
+                    var minDist2 = 10000.0f;
+                    var minIdx2 = -1;
+
+                    for (var ii: i32; ii < 4; ii++)
+                    {
+                        if (dist2[ii] < minDist2 && dist2[ii] > 0.0f)
+                        {
+                            minDist2 = dist2[ii];
+                            minIdx2 = ii;
+                        }
+                    }
+
+                    if (minIdx2 == 3)
+                    {
+                        var illumData: IllumData;
+                        if (minIdx == 0)
+                        {
+                            illumData.normal = normalize(newRay.origin - sphere.center);
+                        }
+                        else if (minIdx == 1)
+                        {
+                            illumData.normal = normalize(newRay.origin - sphere2.center);
+                        }
+                        else if (minIdx == 2)
+                        {
+                            illumData.normal = vec3f(0.0f, -1.0f, 0.0f);
+                        }
+
+                        illumData.S = normalize(light.position - newRay.origin);
+                        illumData.V = -ray.dir;
+                        illumData.R = reflect(illumData.S, illumData.normal);
+                        illumData.H = (illumData.S + illumData.normal)/2.0f;
+
+                        var ke: f32 = 100.0f;
+                        var irradiance: vec3f;
+                        irradiance = light.ka * returnColor * ambientColor
+                                        + light.kd * light.color * returnColor * dot(illumData.S, illumData.normal)
+                                        + light.ks * light.color * specularColor * pow(max(dot(illumData.H, illumData.normal), 0.0f), ke);
+
+                        irradiance += light.kd * light2.color * returnColor * dot(illumData.S, illumData.normal)
+                        + light.ks * light2.color * specularColor * pow(max(dot(illumData.H, illumData.normal), 0.0f), ke);
+
+                        return vec4f(irradiance, 1.0f);
+                    }
+
+                    return vec4f(light.ka * returnColor * ambientColor, 1.0f);
+                }
+
+                fn random(seed: f32) -> f32
+                {
+                    return fract(sin(seed) * 43758.5453);  // Simple pseudo-random number
                 }
 
                 @fragment
@@ -317,196 +530,42 @@ export class Renderer
                     let aspect = resolution.x / resolution.y;
                     let uv : vec2f = (fragCoord.xy / resolution.y) * 2.0f - 1.0f;
 
-
                     var cam: Camera;
+
+                    // pixels
                     cam.imageHeight = resolution.y;
                     cam.imageWidth = resolution.x;
-                    cam.focalLength = 1.0f;
+
+                    // TODO: Is the focal length okay?
+                    // Look into projection matrix/perspective logic?
+                    // Should I be checking for intersections "only past the focal plane"?
                     cam.filmPlaneHeight = 25.0f;
                     cam.filmPlaneWidth = 25.0f;
+
+                    let fov = 5.0f;
+                    cam.focalLength = (cam.filmPlaneHeight / 2.0f)/tan(radians(fov/2));
 
 
                     let w : f32 = cam.filmPlaneWidth/cam.imageWidth;
                     let h : f32 = cam.filmPlaneHeight/cam.imageHeight;
-                    let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+
+                    var color: vec4f = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
+
+                    var numIters: f32 = 100.0f;
+                    for (var ii: f32 = 0.0f; ii < numIters; ii += 1.0f)
+                    {
+                        var xVal: f32 = random(ii * 2.0f);
+                        var yVal: f32 = random(ii * 2.0f + 1.0f);
+
+                        let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
                                     (fragCoord.y - resolution.y * 0.5f) * h)
-                                    + vec2f(0.5f * w, 0.5f * h);
-
-                    var eye = vec3f(-0.2f, 0.1f, -1.0f);
-
-                    // Temp
-                    var sphere: Sphere;
-                    sphere.radius = 1.0f;
-                    sphere.center = vec3f(-0.15f, -0.25f, 1.5f);
-
-                    var sphere2: Sphere;
-                    sphere2.radius = 0.93f;
-                    sphere2.center = vec3f(0.6f, 0.6f, 2.0f);
-
-                    var plane: Plane;
-                    plane.normal = vec3f(1.0f, -1.0f, 0.0f);
-                    plane.point = vec3f(-0.15f, 1.75f, 1.5f);
-
-                    var view = viewTransformMatrix(
-                        eye,
-                        vec3f(12.687f, -2.639f, 3.0f),
-                        vec3f(0.0f, -1.0f, 0.0f)
-                    );
-
-                    // var rayDir : vec3f = normalize(vec3f(pixelVal, cam.focalLength));
-                    var rayDir : vec3f = normalize(vec3f(uv, cam.focalLength));
-
-                    // return vec4f(rayDir, 1.0f);
-
-                    var ray: Ray;
-                    ray.origin = eye;
-                    ray.dir = rayDir;
-
-                    // sphere.center = (view * vec4f(sphere.center, 1.0f)).xyz;
-                    // sphere.center.y *= -1.0f;
-                    // sphere.center.z *= -1.0f;
-
-                    // return vec4f((sphere.center.z) * 0.85, 0.0f, 0.0f, 1.0f);
-
-                    let quad = Quad(
-                        vec3<f32>(0.0, 0.2, -2.0), // First vertex of the quad
-                        vec3<f32>( 10.5, 0.2, 25.5), // Second vertex
-                        vec3<f32>( 1.0, 0.2,  1.0), // Third vertex
-                        vec3<f32>(-1.0, 0.2,  1.2), // Fourth vertex
-                        vec3<f32>(0.0, -1.0, 0.0)    // Normal vector of the plane (pointing up)
-                    );
-
-                    let cylinder = Cylinder(0.5, 1.0, vec3<f32>(0.2, 0.7, 1.0f));
-
-                    let t = intersect_ray_cylinder(ray, cylinder);
-                
-                    let validHitDist3 = max(0.0f, intersect_ray_quad(ray, quad));
-
-                    var validHitDist1 = max(0.0f, sphereRayIntersectDist(ray, sphere));
-                    var validHitDist2 = max(0.0f, sphereRayIntersectDist(ray, sphere2));
-                    // var validHitDist3 = max(0.0f, intersect_ray_plane(ray, plane));
-
-                    var minHitDist = 1e6;  // Some large number
-
-                    // Now find the least positive value
-                    // if (validHitDist1 > 0.0f && validHitDist1 < minHitDist) {
-                    //     minHitDist = validHitDist1;
-                    // }
-                    // if (validHitDist2 > 0.0f && validHitDist2 < minHitDist) {
-                    //     minHitDist = validHitDist2;
-                    // }
-                    // if (validHitDist3 > 0.0f && validHitDist3 < minHitDist) {
-                    //     minHitDist = validHitDist3;
-                    // }
-
-                    
-
-                    // If minHitDist is still large, there was no intersection
-                    // if (minHitDist == validHitDist1)
-                    // {
-                    //     return vec4f(0.8f, 0.0f, 0.0f, 1.0f); // Return gray color if there's a valid intersection
-                    // }
-                    // else if minHitDist == validHitDist2
-                    // {
-                    //     return vec4f(0.0f, 0.8f, 0.0f, 1.0f);
-                    // }
-                    // else if minHitDist == validHitDist3
-                    // {
-                    //     return vec4f(0.5f, 0.5f, 0.5f, 0.1f);
-                    // }
-
-                    if (t > 0.0f)
-                    {
-                        return vec4f(0.0f, 0.0f, 1.0f, 1.0f);
+                                    + vec2f(0.1 * w, 0.1 * h);
+                        
+                        color += getReturnColor(pixelVal, cam);
                     }
 
-                    if (validHitDist1 > 0.0f && validHitDist2 > 0.0f)
-                    {
-                        if (validHitDist1 < validHitDist2)
-                        {
-                            return vec4f(1.0f, 0.0f, 0.0f, 1.0f);
-                        }
-
-                        return vec4f(0.0f, 1.0f, 0.0f, 1.0f);
-                    }
-                    else if (validHitDist1 > 0.0f)
-                    {
-                        return vec4f(1.0f, 0.0f, 0.0f, 1.0f);
-                    }
-                    else if (validHitDist2 > 0.0f)
-                    {
-                        return vec4f(0.0f, 1.0f, 0.0f, 1.0f);
-                    }
-                    else if (validHitDist3 > 0.0f)
-                    {
-                        return vec4f(0.5f, 0.5f, 0.5f, 1.0f);
-                    }
-
-                    return vec4f(0.0f, 0.0f, 0.0f, 1.0f);
+                    return color/numIters;                    
                 }
-
-                // @fragment
-                // fn fragmentMain(@builtin(position) fragCoord: vec4f)
-                //     -> @location(0) vec4f
-                // {
-                //     // NOTE: +Y is towards the bottom of the screen
-
-                //     // TODO: Making everything square for now, but will need to deal with aspect ratios later
-                //     let resolution = vec2f(500.0f, 500.0f);
-                //     let aspect = resolution.x / resolution.y;
-                //     let uv : vec2f = (fragCoord.xy / resolution.y) * 2.0f - 1.0f;
-
-
-                //     var cam: Camera;
-                //     cam.imageHeight = resolution.y;
-                //     cam.imageWidth = resolution.x;
-                //     cam.focalLength = 1.0f;
-                //     cam.filmPlaneHeight = 25.0f;
-                //     cam.filmPlaneWidth = 25.0f;
-
-
-                //     let w : f32 = cam.filmPlaneWidth/cam.imageWidth;
-                //     let h : f32 = cam.filmPlaneHeight/cam.imageHeight;
-                //     let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
-                //                     (fragCoord.y - resolution.y * 0.5f) * h)
-                //                     + vec2f(0.5f * w, 0.5f * h);
-
-                //     var eye = vec3f(16.687f, -2.639f, 0.2f);
-
-                //     // Temp
-                //     var sphere: Sphere;
-                //     sphere.radius = 3.5f;
-                //     sphere.center = vec3f(9.11, -1.63, 1.352);
-
-                //     var view = viewTransformMatrix(
-                //         eye,
-                //         vec3f(12.687f, -2.639f, 3.0f),
-                //         vec3f(0.0f, -1.0f, 0.0f)
-                //     );
-
-                //     var rayDir : vec3f = normalize(vec3f(pixelVal, cam.focalLength));
-
-                //     // return vec4f(rayDir, 1.0f);
-
-                //     var ray: Ray;
-                //     ray.origin = vec3f(0.0f);
-                //     ray.dir = rayDir;
-
-                //     sphere.center = (view * vec4f(sphere.center, 1.0f)).xyz;
-                //     // sphere.center.y *= -1.0f;
-                //     // sphere.center.z *= -1.0f;
-
-                //     // return vec4f((sphere.center.z) * 0.85, 0.0f, 0.0f, 1.0f);
-
-                //     var hitDist = sphereRayIntersectDist(ray, sphere);
-
-                //     if (hitDist > 0.0f)
-                //     {
-                //         return vec4f(1.0f, 0.0f, 0.0f, 1.0f);
-                //     }
-
-                //     return vec4f(0.0f, (hitDist) * 0.1, 0.0f, 1.0f);
-                // }
                 `
             });
     }
