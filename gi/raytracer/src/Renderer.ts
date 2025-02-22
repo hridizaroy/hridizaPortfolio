@@ -131,15 +131,6 @@ export class Renderer
                     color: vec3f
                 }
 
-                // struct Quad
-                // {
-                //     v0: vec3f,
-                //     v1: vec3f,
-                //     v2: vec3f,
-                //     v3: vec3f,
-                //     color: vec3f
-                // };
-
                 struct Camera
                 {
                     focalLength: f32,
@@ -318,6 +309,17 @@ export class Renderer
                     return select(-1.0f, closestT, closestT > 0.0f);
                 }
 
+                fn reflect(I: vec3<f32>, N: vec3<f32>) -> vec3<f32>
+                {
+                    return I - 2.0 * dot(I, N) * N;
+                }
+
+                struct Light
+                {
+                    position: vec3f,
+                    intensity: f32
+                }
+
                 @fragment
                 fn fragmentMain(@builtin(position) fragCoord: vec4f)
                     -> @location(0) vec4f
@@ -417,22 +419,73 @@ export class Renderer
 
                     if (minIdx == -1)
                     {
-                        returnColor = vec3f(0.0f, 0.0f, 0.0f);
+                        return vec4f(0.0f, 0.0f, 0.0f, 1.0f);
                     }
-                    else if (minIdx == 0)
+
+                    /** TODO
+                     * Create a struct for payload with intersection point, 
+                     * intersection distance, normal etc.
+                     * 
+                     * Create a struct for representing scene objects
+                     * 
+                     * Handle the object hit identification more cleanly
+                     * 
+                     * Create a function for a shadow ray
+                     * 
+                     * Send in scene data from CPU side code
+                     * 
+                     * Reduce if statements to optimize shader
+                     */
+
+                    var light: Light;
+                    light.position = vec3f(6.11, -50.0, 6.0);
+                    light.intensity = 3.0f;                    
+
+                    var newRay: Ray;
+                    newRay.origin = ray.origin + minDist * ray.dir;
+                    newRay.dir = normalize(light.position - newRay.origin);
+
+                    if (minIdx == 0)
                     {
                         returnColor = sphere.color;
+                        newRay.origin += normalize(newRay.origin - sphere.center) * 0.001;
                     }
                     else if (minIdx == 1)
                     {
                         returnColor = sphere2.color;
+                        newRay.origin += normalize(newRay.origin - sphere2.center) * 0.001;
                     }
                     else
                     {
                         returnColor = quad.color;
+                        newRay.origin += vec3f(0.0f, -0.001, 0.0f);
                     }
 
-                    return vec4f(returnColor, 1.0f);
+                    var lightHitDist = max(0.0f, length(light.position - newRay.origin));
+                    hitDist1 = max(0.0f, sphereRayIntersectDist(newRay, sphere));
+                    hitDist2 = max(0.0f, sphereRayIntersectDist(newRay, sphere2));
+                    hitDist3 = max(0.0f, intersect_ray_quad(newRay, quad));
+
+                    var dist2: array<f32, 4> = array<f32, 4>(hitDist1, hitDist2, hitDist3, lightHitDist);
+
+                    minDist = 10000.0f;
+                    minIdx = -1;
+
+                    for (var ii: i32; ii < 4; ii++)
+                    {
+                        if (dist2[ii] < minDist && dist2[ii] > 0.0f)
+                        {
+                            minDist = dist2[ii];
+                            minIdx = ii;
+                        }
+                    }
+
+                    if (minIdx == 3)
+                    {
+                        return vec4f(returnColor, 1.0f);
+                    }
+
+                    return vec4f(0.0f, 0.0f, 0.0f, 1.0f);
                 }
                 `
             });
