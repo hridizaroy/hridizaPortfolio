@@ -551,7 +551,7 @@ export class Renderer
 
                     var color: vec4f = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
 
-                    var numIters: f32 = 1.0f;
+                    var numIters: f32 = 100.0f;
                     for (var ii: f32 = 0.0f; ii < numIters; ii += 1.0f)
                     {
                         var xVal: f32 = random(ii * 2.0f);
