@@ -317,7 +317,20 @@ export class Renderer
                 struct Light
                 {
                     position: vec3f,
-                    intensity: f32
+                    intensity: f32,
+                    color: vec3f,
+                    ka: f32,
+                    kd: f32,
+                    ks: f32
+                }
+
+                struct IllumData
+                {
+                    normal: vec3f,
+                    S: vec3f,
+                    R: vec3f,
+                    H: vec3f,
+                    V: vec3f
                 }
 
                 @fragment
@@ -417,9 +430,13 @@ export class Renderer
 
                     var returnColor: vec3f;
 
+                    
+                    var ambientColor = vec3f(0.78f, 0.91f, 1.0f);
+                    var specularColor = vec3f(1.0f, 1.0f, 1.0f);
+
                     if (minIdx == -1)
                     {
-                        return vec4f(0.0f, 0.0f, 0.0f, 1.0f);
+                        return vec4f(ambientColor, 1.0f);
                     }
 
                     /** TODO
@@ -438,8 +455,13 @@ export class Renderer
                      */
 
                     var light: Light;
-                    light.position = vec3f(6.11, -50.0, 6.0);
-                    light.intensity = 3.0f;                    
+                    light.position = vec3f(0.0f, -30.0, -20.0);
+                    light.intensity = 3.0f;
+                    light.color = vec3f(1.0f, 1.0f, 1.0f);
+                    light.ka = 0.1f;
+                    light.kd = 0.8f;
+                    light.ks = 0.1f;
+                    
 
                     var newRay: Ray;
                     newRay.origin = ray.origin + minDist * ray.dir;
@@ -458,7 +480,7 @@ export class Renderer
                     else
                     {
                         returnColor = quad.color;
-                        newRay.origin += vec3f(0.0f, -0.001, 0.0f);
+                        newRay.origin += vec3f(0.0f, -0.1, 0.0f);
                     }
 
                     var lightHitDist = max(0.0f, length(light.position - newRay.origin));
@@ -468,24 +490,49 @@ export class Renderer
 
                     var dist2: array<f32, 4> = array<f32, 4>(hitDist1, hitDist2, hitDist3, lightHitDist);
 
-                    minDist = 10000.0f;
-                    minIdx = -1;
+                    var minDist2 = 10000.0f;
+                    var minIdx2 = -1;
 
                     for (var ii: i32; ii < 4; ii++)
                     {
-                        if (dist2[ii] < minDist && dist2[ii] > 0.0f)
+                        if (dist2[ii] < minDist2 && dist2[ii] > 0.0f)
                         {
-                            minDist = dist2[ii];
-                            minIdx = ii;
+                            minDist2 = dist2[ii];
+                            minIdx2 = ii;
                         }
                     }
 
-                    if (minIdx == 3)
+                    if (minIdx2 == 3)
                     {
-                        return vec4f(returnColor, 1.0f);
+                        var illumData: IllumData;
+                        if (minIdx == 0)
+                        {
+                            illumData.normal = normalize(newRay.origin - sphere.center);
+                        }
+                        else if (minIdx == 1)
+                        {
+                            illumData.normal = normalize(newRay.origin - sphere2.center);
+                        }
+                        else if (minIdx == 2)
+                        {
+                            illumData.normal = vec3f(0.0f, -1.0f, 0.0f);
+                        }
+
+                        illumData.S = normalize(light.position - newRay.origin);
+                        illumData.V = -ray.dir;
+                        illumData.R = reflect(illumData.S, illumData.normal);
+                        illumData.H = (illumData.S + illumData.normal)/2.0f;
+
+                        var ke: f32 = 50.0f;
+                        var irradiance: vec3f;
+                        irradiance = light.ka * returnColor * ambientColor
+                                        + light.kd * light.color * returnColor * dot(illumData.S, illumData.normal)
+                                        + light.ks * light.color * specularColor * pow(max(dot(illumData.R, illumData.V), 0.0f), ke);
+
+                        return vec4f(irradiance, 1.0f);
                     }
 
-                    return vec4f(0.0f, 0.0f, 0.0f, 1.0f);
+                    return vec4f(light.ka * returnColor * ambientColor, 1.0f);
                 }
                 `
             });
