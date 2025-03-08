@@ -191,51 +191,104 @@ export class Renderer
                 }
 
 
+                // fn is_point_inside_quad(point: vec3<f32>, quad: Quad) -> bool {
+                //     // Barycentric coordinates or point-in-polygon test (for a quadrilateral)
+                    
+                //     // Calculate vectors for the quadrilateral edges
+                //     let v0v1 = quad.v1 - quad.v0;
+                //     let v0v3 = quad.v3 - quad.v0;
+                //     let v0p = point - quad.v0;
+                //     let v1v2 = quad.v2 - quad.v1;
+                //     let v1p = point - quad.v1;
+                    
+                //     // Use dot products to check if the point is inside the quad
+                //     let d00 = dot(v0v1, v0v1);
+                //     let d01 = dot(v0v1, v0v3);
+                //     let d11 = dot(v0v3, v0v3);
+                //     let d20 = dot(v0p, v0v1);
+                //     let d21 = dot(v0p, v0v3);
+                //     let d02 = dot(v1v2, v1v2);
+                //     let d12 = dot(v1v2, v1p);
+                    
+                //     // Calculate barycentric coordinates
+                //     let denom = d00 * d11 - d01 * d01;
+                //     let alpha = (d11 * d20 - d01 * d21) / denom;
+                //     let beta = (d00 * d21 - d01 * d20) / denom;
+                
+                //     // The point is inside the quad if alpha and beta are between 0 and 1
+                //     return alpha >= 0.0 && beta >= 0.0 && (alpha + beta) <= 1.0;
+                // }
+
                 fn is_point_inside_quad(point: vec3<f32>, quad: Quad) -> bool {
-                    // Barycentric coordinates or point-in-polygon test (for a quadrilateral)
-                    
-                    // Calculate vectors for the quadrilateral edges
-                    let v0v1 = quad.v1 - quad.v0;
-                    let v0v3 = quad.v3 - quad.v0;
-                    let v0p = point - quad.v0;
-                    let v1v2 = quad.v2 - quad.v1;
-                    let v1p = point - quad.v1;
-                    
-                    // Use dot products to check if the point is inside the quad
+                    // Split the quad into two triangles
+                    let v0 = quad.v0;
+                    let v1 = quad.v1;
+                    let v2 = quad.v2;
+                    let v3 = quad.v3;
+                
+                    // First triangle (v0, v1, v2)
+                    let triangle1 = is_point_inside_triangle(point, v0, v1, v2);
+                
+                    // Second triangle (v0, v2, v3)
+                    let triangle2 = is_point_inside_triangle(point, v0, v2, v3);
+                
+                    // Point is inside the quad if it is inside either of the two triangles
+                    return triangle1 || triangle2;
+                }
+                
+                fn is_point_inside_triangle(point: vec3<f32>, v0: vec3<f32>, v1: vec3<f32>, v2: vec3<f32>) -> bool {
+                    // Calculate vectors for the triangle edges
+                    let v0v1 = v1 - v0;
+                    let v0v2 = v2 - v0;
+                    let v0p = point - v0;
+                    let v1v2 = v2 - v1;
+                    let v1p = point - v1;
+                
+                    // Use dot products to calculate barycentric coordinates
                     let d00 = dot(v0v1, v0v1);
-                    let d01 = dot(v0v1, v0v3);
-                    let d11 = dot(v0v3, v0v3);
+                    let d01 = dot(v0v1, v0v2);
+                    let d11 = dot(v0v2, v0v2);
                     let d20 = dot(v0p, v0v1);
-                    let d21 = dot(v0p, v0v3);
+                    let d21 = dot(v0p, v0v2);
                     let d02 = dot(v1v2, v1v2);
                     let d12 = dot(v1v2, v1p);
-                    
-                    // Calculate barycentric coordinates
+                
+                    // Calculate the barycentric coordinates
                     let denom = d00 * d11 - d01 * d01;
                     let alpha = (d11 * d20 - d01 * d21) / denom;
                     let beta = (d00 * d21 - d01 * d20) / denom;
                 
-                    // The point is inside the quad if alpha and beta are between 0 and 1
+                    // The point is inside the triangle if alpha, beta, and (alpha + beta) are within [0, 1]
                     return alpha >= 0.0 && beta >= 0.0 && (alpha + beta) <= 1.0;
                 }
                 
-                fn intersect_ray_quad(ray: Ray, quad: Quad) -> f32 {
+                
+                struct QuadData
+                {
+                    hitDist: f32,
+                    intersectPoint: vec3f
+                }
+                fn intersect_ray_quad(ray: Ray, quad: Quad) -> QuadData {
                     // First, find the intersection with the plane of the quad
                     let hitDist = intersect_ray_plane(ray, quad.v0, quad.normal);
                     
+                    var returnData: QuadData;
+                    returnData.hitDist = -1.0;
                     if hitDist < 0.0 {
-                        return -1.0; // No intersection, or intersection behind the ray origin
+                        return returnData; // No intersection, or intersection behind the ray origin
                     }
                     
                     // Now calculate the intersection point
                     let intersection_point = ray.origin + hitDist * ray.dir;
+                    returnData.intersectPoint = intersection_point;
                     
                     // Check if the intersection point lies inside the quad
                     if is_point_inside_quad(intersection_point, quad) {
-                        return hitDist; // Return the distance to the intersection point
+                        returnData.hitDist = hitDist;
+                        return returnData; // Return the distance to the intersection point
                     }
                     
-                    return -1.0; // The point is outside the quad, no valid intersection
+                    return returnData; // The point is outside the quad, no valid intersection
                 }
 
 
@@ -349,13 +402,16 @@ export class Renderer
                     sphere2.center = vec3f(11.361, -2.813, 0.124);
                     sphere2.color =  vec3f(0.8f, 0.0f, 0.0f);
 
+                    let quadRefVertex: vec3f = vec3<f32>(-30.0, 20.0f, 0.0);
+                    let quadWidth = 60.0f;
+                    let quadLength = 3000.0f;
                     let quad = Quad(
-                        vec3<f32>(110.0, 20.0f, 6000.0), // First vertex of the quad
-                        vec3<f32>( 0.0, 20.0f, -1500.0), // Second vertex
-                        vec3<f32>( -110.0, 20.0f,  -2000.0), // Third vertex
-                        vec3<f32>(-110.0, 20.0f,  8000.0), // Fourth vertex
+                        vec3<f32>(30.0, 20.0f, 3000.0), // First vertex of the quad
+                        vec3<f32>( 30.0, 20.0f, 0.0), // Second vertex
+                        quadRefVertex, // Third vertex
+                        vec3<f32>(-30.0, 20.0f,  3000.0), // Fourth vertex
                         vec3<f32>(0.0, -1.0, 0.0),    // Normal vector of the plane (pointing up,
-                        vec3<f32>(0.1f, 0.1f, 0.8f) // color
+                        vec3<f32>(1.0f, 1.0f, 1.0f) // color
                     );
 
                     var triangle: Triangle;
@@ -379,9 +435,13 @@ export class Renderer
                     sphere.center = (view * vec4f(sphere.center, 1.0f)).xyz;
                     sphere2.center = (view * vec4f(sphere2.center, 1.0f)).xyz;
 
+                    
                     var hitDist1 = max(0.0f, sphereRayIntersectDist(ray, sphere));
                     var hitDist2 = max(0.0f, sphereRayIntersectDist(ray, sphere2));
-                    var hitDist3 = max(0.0f, intersect_ray_quad(ray, quad));
+
+                    var quadData: QuadData = intersect_ray_quad(ray, quad);
+                    var hitDist3 = max(0.0f, quadData.hitDist);
+                    var quadIntersectPoint = quadData.intersectPoint;
 
                     var dist: array<f32, 3> = array<f32, 3>(hitDist1, hitDist2, hitDist3);
 
@@ -400,6 +460,7 @@ export class Renderer
                     var returnColor: vec3f;
                     
                     var ambientColor = vec3f(0.78f, 0.91f, 1.0f);
+
                     var specularColor = vec3f(1.0f, 1.0f, 1.0f);
 
                     if (minIdx == -1)
@@ -428,16 +489,16 @@ export class Renderer
 
                     var light: Light;
                     light.position = vec3f(0.0f, -30.0, -20.0);
-                    light.intensity = 3.0f;
+                    light.intensity = 1.3f;
                     light.color = vec3f(1.0f, 1.0f, 1.0f);
                     light.ka = 0.1f;
                     light.kd = 0.8f;
                     light.ks = 0.1f;
 
                     var light2: Light;
-                    light2.position = vec3f(0.0f, -50.0, 30.0);
-                    light2.intensity = 3.0f;
-                    light2.color = vec3f(0.0f, 1.0f, 0.0f);
+                    light2.position = vec3f(0.0f, -50.0, -30.0);
+                    light2.intensity = 1.0f;
+                    light2.color = vec3f(1.0f, 1.0f, 1.0f);
 
                     var newRay: Ray;
                     newRay.origin = ray.origin + minDist * ray.dir;
@@ -445,24 +506,26 @@ export class Renderer
 
                     if (minIdx == 0)
                     {
-                        returnColor = sphere.color;
+                        returnColor = sphere.color * light.intensity;
                         newRay.origin += normalize(newRay.origin - sphere.center) * 0.001;
                     }
                     else if (minIdx == 1)
                     {
-                        returnColor = sphere2.color;
+                        returnColor = sphere2.color * light.intensity;
                         newRay.origin += normalize(newRay.origin - sphere2.center) * 0.001;
                     }
                     else
                     {
-                        returnColor = quad.color;
+                        returnColor = quad.color * light.intensity;
                         newRay.origin += vec3f(0.0f, -0.1, 0.0f);
                     }
 
                     var lightHitDist = max(0.0f, length(light.position - newRay.origin));
                     hitDist1 = max(0.0f, sphereRayIntersectDist(newRay, sphere));
                     hitDist2 = max(0.0f, sphereRayIntersectDist(newRay, sphere2));
-                    hitDist3 = max(0.0f, intersect_ray_quad(newRay, quad));
+
+                    var quadData2: QuadData = intersect_ray_quad(newRay, quad);
+                    hitDist3 = max(0.0f, quadData2.hitDist);
 
                     var dist2: array<f32, 4> = array<f32, 4>(hitDist1, hitDist2, hitDist3, lightHitDist);
 
@@ -492,6 +555,59 @@ export class Renderer
                         else if (minIdx == 2)
                         {
                             illumData.normal = vec3f(0.0f, -1.0f, 0.0f);
+
+                            // quad uv coords
+                            var uv: vec3f = quadData.intersectPoint - quadRefVertex;
+                            uv.x = uv.x / quadWidth;
+                            uv.y = uv.z / quadLength;
+                            uv.z = 0.0f;
+
+                            var uvScale = 10.0f;
+                            var scaledUV = floor(uv * uvScale);
+
+                            // var minDist: f32 = 100.0f;
+                            // for (var dx: f32 = -1.0; dx <= 1.0; dx+=1.0f)
+                            // {
+                            //     for (var dy: f32 = -1.0; dy <= 1.0; dy+= 1.0f)
+                            //     {
+                            //         var neighbor = scaledUV.xy + vec2f(dx, dy);
+
+                            //         if (neighbor.x < 0.0f || neighbor.y < 0.0f
+                            //             || neighbor.x > uvScale || neighbor.y > uvScale
+                            //         )
+                            //         {
+                            //             continue;
+                            //         }
+
+                            //         var uvNoiseX: f32 = random2D(neighbor);
+                            //         var uvNoiseY: f32 = random(uvNoiseX);
+        
+                            //         var voronoiPoint = (neighbor + vec2f(uvNoiseX, uvNoiseY))/uvScale;
+                                    
+                            //         var currDist = length(voronoiPoint - uv.xy);
+
+                            //         minDist = min(minDist, currDist);
+                            //     }
+                            // }
+
+                            // returnColor = vec3f((1.0f - minDist * uvScale), 0.0, 0.0);
+
+                            if ((u32(scaledUV.x) % 2 == 0 && u32(scaledUV.y) % 2 == 0)
+                            || (u32(scaledUV.x) % 2 == 1 && u32(scaledUV.y) % 2 == 1))
+                            {
+                                returnColor = vec3f(1.0, 0.0, 0.0) * light.intensity;
+                            }
+                            else
+                            {
+                                returnColor = vec3f(1.0, 1.0, 0.0) * light.intensity;
+                            }
+
+                            var uvNoise = random2D(scaledUV.xy);
+
+                            if (uvNoise < 0.3 )
+                            {
+                                returnColor *= 0.5;
+                            }
                         }
 
                         illumData.S = normalize(light.position - newRay.origin);
@@ -517,6 +633,11 @@ export class Renderer
                 fn random(seed: f32) -> f32
                 {
                     return fract(sin(seed) * 43758.5453);  // Simple pseudo-random number
+                }
+
+                fn random2D(seed: vec2f) -> f32
+                {
+                    return fract(sin(dot(seed, vec2f(1229.343, 829.2378))) * 43758.5453);  // Simple pseudo-random number
                 }
 
                 @fragment
