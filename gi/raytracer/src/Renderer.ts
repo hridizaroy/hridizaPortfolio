@@ -489,7 +489,7 @@ export class Renderer
 
                     var light: Light;
                     light.position = vec3f(0.0f, -30.0, -20.0);
-                    light.intensity = 1.3f;
+                    light.intensity = 2.7f;
                     light.color = vec3f(1.0f, 1.0f, 1.0f);
                     light.ka = 0.1f;
                     light.kd = 0.8f;
@@ -563,37 +563,30 @@ export class Renderer
                             uv.z = 0.0f;
 
                             var uvScale = 10.0f;
-                            var scaledUV = floor(uv * uvScale);
+                            var scaledUV = uv * uvScale;
+                            var uvFloor = floor(scaledUV);
 
-                            // var minDist: f32 = 100.0f;
-                            // for (var dx: f32 = -1.0; dx <= 1.0; dx+=1.0f)
-                            // {
-                            //     for (var dy: f32 = -1.0; dy <= 1.0; dy+= 1.0f)
-                            //     {
-                            //         var neighbor = scaledUV.xy + vec2f(dx, dy);
+                            var minDist: f32 = 100.0f;
+                            for (var dx: f32 = -1.0; dx <= 1.0; dx+=1.0f)
+                            {
+                                for (var dy: f32 = -1.0; dy <= 1.0; dy+= 1.0f)
+                                {
+                                    var neighbor = uvFloor.xy + vec2f(dx, dy);
 
-                            //         if (neighbor.x < 0.0f || neighbor.y < 0.0f
-                            //             || neighbor.x > uvScale || neighbor.y > uvScale
-                            //         )
-                            //         {
-                            //             continue;
-                            //         }
-
-                            //         var uvNoiseX: f32 = random2D(neighbor);
-                            //         var uvNoiseY: f32 = random(uvNoiseX);
+                                    var uvNoiseX: f32 = random2D(neighbor);
+                                    var uvNoiseY: f32 = random(uvNoiseX);
         
-                            //         var voronoiPoint = (neighbor + vec2f(uvNoiseX, uvNoiseY))/uvScale;
+                                    var voronoiPoint = neighbor + vec2f(uvNoiseX, uvNoiseY);
                                     
-                            //         var currDist = length(voronoiPoint - uv.xy);
+                                    var currDist = length(voronoiPoint - scaledUV.xy);
 
-                            //         minDist = min(minDist, currDist);
-                            //     }
-                            // }
+                                    minDist = min(minDist, currDist);
+                                }
+                            }
 
-                            // returnColor = vec3f((1.0f - minDist * uvScale), 0.0, 0.0);
+                            // returnColor = vec3f(1.0 - minDist) * light.intensity;
 
-                            if ((u32(scaledUV.x) % 2 == 0 && u32(scaledUV.y) % 2 == 0)
-                            || (u32(scaledUV.x) % 2 == 1 && u32(scaledUV.y) % 2 == 1))
+                            if (u32(scaledUV.x) % 2 == u32(scaledUV.y) % 2)
                             {
                                 returnColor = vec3f(1.0, 0.0, 0.0) * light.intensity;
                             }
@@ -602,11 +595,11 @@ export class Renderer
                                 returnColor = vec3f(1.0, 1.0, 0.0) * light.intensity;
                             }
 
-                            var uvNoise = random2D(scaledUV.xy);
+                            var uvNoise = random2D(uvFloor.xy);
 
                             if (uvNoise < 0.3 )
                             {
-                                returnColor *= 0.5;
+                                returnColor *= 0.3;
                             }
                         }
 
@@ -632,12 +625,12 @@ export class Renderer
 
                 fn random(seed: f32) -> f32
                 {
-                    return fract(sin(seed) * 43758.5453);  // Simple pseudo-random number
+                    return fract(sin(seed) * 43758.5453123);  // Simple pseudo-random number
                 }
 
                 fn random2D(seed: vec2f) -> f32
                 {
-                    return fract(sin(dot(seed, vec2f(1229.343, 829.2378))) * 43758.5453);  // Simple pseudo-random number
+                    return fract(sin(dot(seed, vec2f(12.9898,78.233))) * 43758.5453123);
                 }
 
                 @fragment
