@@ -489,7 +489,7 @@ export class Renderer
 
                     var light: Light;
                     light.position = vec3f(0.0f, -30.0, -20.0);
-                    light.intensity = 1.3f;
+                    light.intensity = 2.7f;
                     light.color = vec3f(1.0f, 1.0f, 1.0f);
                     light.ka = 0.1f;
                     light.kd = 0.8f;
@@ -584,23 +584,23 @@ export class Renderer
                                 }
                             }
 
-                            returnColor = vec3f(1.0 - minDist);
+                            // returnColor = vec3f(1.0 - minDist) * light.intensity;
 
-                            // if (u32(scaledUV.x) % 2 == u32(scaledUV.y) % 2)
-                            // {
-                            //     returnColor = vec3f(1.0, 0.0, 0.0) * light.intensity;
-                            // }
-                            // else
-                            // {
-                            //     returnColor = vec3f(1.0, 1.0, 0.0) * light.intensity;
-                            // }
+                            if (u32(scaledUV.x) % 2 == u32(scaledUV.y) % 2)
+                            {
+                                returnColor = vec3f(1.0, 0.0, 0.0) * light.intensity;
+                            }
+                            else
+                            {
+                                returnColor = vec3f(1.0, 1.0, 0.0) * light.intensity;
+                            }
 
-                            // var uvNoise = random2D(scaledUV.xy);
+                            var uvNoise = random2D(uvFloor.xy);
 
-                            // if (uvNoise < 0.3 )
-                            // {
-                            //     returnColor *= 0.5;
-                            // }
+                            if (uvNoise < 0.3 )
+                            {
+                                returnColor *= 0.3;
+                            }
                         }
 
                         illumData.S = normalize(light.position - newRay.origin);
