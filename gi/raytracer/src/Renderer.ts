@@ -369,7 +369,7 @@ export class Renderer
                     nextKr: f32
                 }
                 
-                const quadRefVertex: vec3f = vec3<f32>(-300.0, 20.0f, -3000.0);
+                const quadRefVertex: vec3f = vec3<f32>(-30.0, 20.0f, -3000.0);
                 const quadWidth = 60.0f;
                 const quadLength = 3000.0f;
 
@@ -603,11 +603,8 @@ export class Renderer
                         normal = vec3f(0.0f, -1.0f, 0.0f);
                     }
 
-                    reflectionRay.dir = normalize(ray.dir - 2.0 * dot(ray.dir, normal) * normal);
-                    reflectionRay.origin += reflectionRay.dir * 0.001;
-
-                    // reflectionRay.dir = ray.dir;
-                    // reflectionRay.dir = normalize(sphere2.center - reflectionRay.origin);
+                    reflectionRay.dir = normalize(reflect(ray.dir, normal));
+                    reflectionRay.origin += normal * 1e-4;
 
                     payload.reflectionRay = reflectionRay;
                     
@@ -617,12 +614,6 @@ export class Renderer
                 fn getReturnColor(pixelVal: vec2f, cam: Camera) -> vec4f
                 {
                     var eye = vec3f(389.486, -1.855, 0.573);
-
-                    // var triangle: Triangle;
-                    // triangle.v0 = vec3f(-100.0, 100.0, 100.0);
-                    // triangle.v1 = vec3f(100.0, 100.0, 100.0);
-                    // triangle.v2 = vec3f(0.0, -100.0, 100.0);
-                    // triangle.color = vec3f(0.0f, 0.0f, 1.0f);
 
                     var sphere: Sphere;
                     sphere.radius = 6.0f;
@@ -640,22 +631,11 @@ export class Renderer
                     sphere2.kt = 0.0;
 
                     var quad: Quad;
-                    // quad = Quad(
-                    //     vec3<f32>(30.0, 20.0f, 3000.0), // First vertex of the quad
-                    //     vec3<f32>( 30.0, 20.0f, 0.0), // Second vertex
-                    //     quadRefVertex, // Third vertex
-                    //     vec3<f32>(-30.0, 20.0f,  3000.0), // Fourth vertex
-                    //     vec3<f32>(0.0, -1.0, 0.0),    // Normal vector of the plane (pointing up)
-                    //     vec3<f32>(1.0f, 1.0f, 1.0f), // color
-                    //     0.0, // kr
-                    //     0.0  // kt
-                    // );
-
                     quad = Quad(
-                        vec3<f32>(300.0, 20.0f, 6000.0), // First vertex of the quad
-                        vec3<f32>( 300.0, 20.0f, -3000.0), // Second vertex
+                        vec3<f32>(30.0, 20.0f, 3000.0), // First vertex of the quad
+                        vec3<f32>( 30.0, 20.0f, 0.0), // Second vertex
                         quadRefVertex, // Third vertex
-                        vec3<f32>(-30.0, 20.0f,  6000.0), // Fourth vertex
+                        vec3<f32>(-30.0, 20.0f,  3000.0), // Fourth vertex
                         vec3<f32>(0.0, -1.0, 0.0),    // Normal vector of the plane (pointing up)
                         vec3<f32>(1.0f, 1.0f, 1.0f), // color
                         0.0, // kr
@@ -680,31 +660,20 @@ export class Renderer
 
                     var finalColor = vec4f(0.0);
                     var kr = 1.0;
-                    for (var depth: u32 = 1; depth < 3; depth++)
+                    var focalLength = cam.focalLength;
+                    for (var depth: u32 = 1; depth < MAX_DEPH; depth++)
                     {
-                        var payload = illuminate(ray, cam.focalLength, sphere, sphere2, quad);
+                        var payload = illuminate(ray, focalLength, sphere, sphere2, quad);
+                        focalLength = 0.0; // only use focalLength for first ray (originating from camera)
                         finalColor += kr * payload.color;
                         ray = payload.reflectionRay;
 
-                        if (!payload.intersection)
+                        if (!payload.intersection || payload.nextKr == 0.0)
                         {
-                            if (depth == 2)
-                            {
-                                return vec4f(1.0, 0.0, 1.0, 1.0);
-                            }
                             break;
-                        }
-                        else if (payload.nextKr == 0.0)
-                        {
-                            if (depth == 2) {return vec4f(0.0, 1.0, 0.0, 1.0);};
-                            break;
-                        }
-                        else
-                        {
-                            if (depth == 2) {return vec4f(1.0);};
                         }
 
-                        kr = payload.nextKr;
+                        kr *= payload.nextKr;
                     }
 
                     finalColor.a = 1.0;
