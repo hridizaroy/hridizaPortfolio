@@ -120,7 +120,9 @@ export class Renderer
                 {
                     center: vec3f,
                     radius: f32,
-                    color: vec3f
+                    color: vec3f,
+                    kr: f32,
+                    kt: f32
                 };
 
                 struct Triangle
@@ -171,7 +173,9 @@ export class Renderer
                     v2: vec3<f32>, // Third vertex
                     v3: vec3<f32>, // Fourth vertex
                     normal: vec3<f32>, // Normal to the plane,
-                    color: vec3<f32>
+                    color: vec3<f32>,
+                    kr: f32,
+                    kt: f32
                 };
 
                 fn intersect_ray_plane(ray: Ray, plane_point: vec3<f32>, plane_normal: vec3<f32>) -> f32 {
@@ -189,35 +193,6 @@ export class Renderer
                     
                     return t; // Return the distance along the ray to the intersection point
                 }
-
-
-                // fn is_point_inside_quad(point: vec3<f32>, quad: Quad) -> bool {
-                //     // Barycentric coordinates or point-in-polygon test (for a quadrilateral)
-                    
-                //     // Calculate vectors for the quadrilateral edges
-                //     let v0v1 = quad.v1 - quad.v0;
-                //     let v0v3 = quad.v3 - quad.v0;
-                //     let v0p = point - quad.v0;
-                //     let v1v2 = quad.v2 - quad.v1;
-                //     let v1p = point - quad.v1;
-                    
-                //     // Use dot products to check if the point is inside the quad
-                //     let d00 = dot(v0v1, v0v1);
-                //     let d01 = dot(v0v1, v0v3);
-                //     let d11 = dot(v0v3, v0v3);
-                //     let d20 = dot(v0p, v0v1);
-                //     let d21 = dot(v0p, v0v3);
-                //     let d02 = dot(v1v2, v1v2);
-                //     let d12 = dot(v1v2, v1p);
-                    
-                //     // Calculate barycentric coordinates
-                //     let denom = d00 * d11 - d01 * d01;
-                //     let alpha = (d11 * d20 - d01 * d21) / denom;
-                //     let beta = (d00 * d21 - d01 * d20) / denom;
-                
-                //     // The point is inside the quad if alpha and beta are between 0 and 1
-                //     return alpha >= 0.0 && beta >= 0.0 && (alpha + beta) <= 1.0;
-                // }
 
                 fn is_point_inside_quad(point: vec3<f32>, quad: Quad) -> bool {
                     // Split the quad into two triangles
@@ -386,56 +361,23 @@ export class Renderer
                     V: vec3f
                 }
 
-                fn getReturnColor(pixelVal: vec2f, cam: Camera) -> vec4f
+                struct Payload
                 {
-                    var eye = vec3f(389.486, -1.855, 0.573);
-                    // var eye = vec3f(0.0, 0.0, -500.0f);
+                    intersection: bool,
+                    color: vec4f,
+                    reflectionRay: Ray,
+                    nextKr: f32
+                }
+                
+                const quadRefVertex: vec3f = vec3<f32>(-300.0, 20.0f, -3000.0);
+                const quadWidth = 60.0f;
+                const quadLength = 3000.0f;
 
-                    // Temp
-                    var sphere: Sphere;
-                    sphere.radius = 6.0f;
-                    sphere.center = vec3f(6.11, 5.0, 6.0);
-                    sphere.color = vec3f(0.0f, 0.8f, 0.0f);
-
-                    var sphere2: Sphere;
-                    sphere2.radius = 8.0f;
-                    sphere2.center = vec3f(11.361, -2.813, 0.124);
-                    sphere2.color =  vec3f(0.8f, 0.0f, 0.0f);
-
-                    let quadRefVertex: vec3f = vec3<f32>(-30.0, 20.0f, 0.0);
-                    let quadWidth = 60.0f;
-                    let quadLength = 3000.0f;
-                    let quad = Quad(
-                        vec3<f32>(30.0, 20.0f, 3000.0), // First vertex of the quad
-                        vec3<f32>( 30.0, 20.0f, 0.0), // Second vertex
-                        quadRefVertex, // Third vertex
-                        vec3<f32>(-30.0, 20.0f,  3000.0), // Fourth vertex
-                        vec3<f32>(0.0, -1.0, 0.0),    // Normal vector of the plane (pointing up,
-                        vec3<f32>(1.0f, 1.0f, 1.0f) // color
-                    );
-
-                    var triangle: Triangle;
-                    triangle.v0 = vec3f(-100.0, 100.0, 100.0);
-                    triangle.v1 = vec3f(100.0, 100.0, 100.0);
-                    triangle.v2 = vec3f(0.0, -100.0, 100.0);
-                    triangle.color = vec3f(0.0f, 0.0f, 1.0f);
-
-                    var view = viewTransformMatrix(
-                        eye,
-                        sphere2.center,
-                        vec3f(0.0f, 1.0f, 0.0f)
-                    );
-
-                    var rayDir : vec3f = normalize(vec3f(pixelVal, cam.focalLength));
-
-                    var ray: Ray;
-                    ray.origin = vec3f(0.0f);
-                    ray.dir = rayDir;
-
-                    sphere.center = (view * vec4f(sphere.center, 1.0f)).xyz;
-                    sphere2.center = (view * vec4f(sphere2.center, 1.0f)).xyz;
-
-                    
+                const MAX_DEPH: u32 = 10;
+                fn illuminate(ray: Ray, focalLength: f32,
+                    sphere: Sphere, sphere2: Sphere, quad: Quad
+                ) -> Payload
+                {
                     var hitDist1 = max(0.0f, sphereRayIntersectDist(ray, sphere));
                     var hitDist2 = max(0.0f, sphereRayIntersectDist(ray, sphere2));
 
@@ -450,7 +392,7 @@ export class Renderer
 
                     for (var ii: i32; ii < 3; ii++)
                     {
-                        if (dist[ii] < minDist && dist[ii] > cam.focalLength)
+                        if (dist[ii] < minDist && dist[ii] > focalLength)
                         {
                             minDist = dist[ii];
                             minIdx = ii;
@@ -458,15 +400,24 @@ export class Renderer
                     }
 
                     var returnColor: vec3f;
+
+                    var skyColor = vec3f(0.78f, 0.91f, 1.0f);
                     
-                    var ambientColor = vec3f(0.78f, 0.91f, 1.0f);
+                    var ambientColor = vec3f(0.24f, 0.27f, 0.3f);
 
                     var specularColor = vec3f(1.0f, 1.0f, 1.0f);
 
+                    var payload : Payload;
+
                     if (minIdx == -1)
                     {
-                        return vec4f(ambientColor, 1.0f);
+                        payload.color = vec4f(skyColor, 1.0f);
+                        payload.intersection = false;
+
+                        return payload;
                     }
+                    
+                    payload.intersection = true;
 
                     /** TODO
                      * Create a struct for payload with intersection point, 
@@ -489,15 +440,15 @@ export class Renderer
 
                     var light: Light;
                     light.position = vec3f(0.0f, -30.0, -20.0);
-                    light.intensity = 2.7f;
+                    light.intensity = 3.0f;
                     light.color = vec3f(1.0f, 1.0f, 1.0f);
                     light.ka = 0.1f;
-                    light.kd = 0.8f;
-                    light.ks = 0.1f;
+                    light.kd = 0.5f;
+                    light.ks = 0.4f;
 
                     var light2: Light;
                     light2.position = vec3f(0.0f, -50.0, -30.0);
-                    light2.intensity = 1.0f;
+                    light2.intensity = 2.0f;
                     light2.color = vec3f(1.0f, 1.0f, 1.0f);
 
                     var newRay: Ray;
@@ -508,16 +459,19 @@ export class Renderer
                     {
                         returnColor = sphere.color * light.intensity;
                         newRay.origin += normalize(newRay.origin - sphere.center) * 0.001;
+                        payload.nextKr = sphere.kr;
                     }
                     else if (minIdx == 1)
                     {
                         returnColor = sphere2.color * light.intensity;
                         newRay.origin += normalize(newRay.origin - sphere2.center) * 0.001;
+                        payload.nextKr = sphere2.kr;
                     }
                     else
                     {
                         returnColor = quad.color * light.intensity;
                         newRay.origin += vec3f(0.0f, -0.1, 0.0f);
+                        payload.nextKr = quad.kr;
                     }
 
                     var lightHitDist = max(0.0f, length(light.position - newRay.origin));
@@ -541,6 +495,9 @@ export class Renderer
                         }
                     }
 
+                    var localIllum: vec4f;
+
+                    // if the shadow ray reaches the light
                     if (minIdx2 == 3)
                     {
                         var illumData: IllumData;
@@ -608,7 +565,7 @@ export class Renderer
                         illumData.R = reflect(illumData.S, illumData.normal);
                         illumData.H = (illumData.S + illumData.normal)/2.0f;
 
-                        var ke: f32 = 100.0f;
+                        var ke: f32 = 40.0f;
                         var irradiance: vec3f;
                         irradiance = light.ka * returnColor * ambientColor
                                         + light.kd * light.color * returnColor * dot(illumData.S, illumData.normal)
@@ -616,11 +573,143 @@ export class Renderer
 
                         irradiance += light.kd * light2.color * returnColor * dot(illumData.S, illumData.normal)
                         + light.ks * light2.color * specularColor * pow(max(dot(illumData.H, illumData.normal), 0.0f), ke);
-
-                        return vec4f(irradiance, 1.0f);
+                        
+                        localIllum = vec4f(irradiance, 1.0f);
+                    }
+                    // if shadow ray hits another object
+                    else
+                    {
+                        localIllum = vec4f(light.ka * returnColor * ambientColor, 1.0f);
                     }
 
-                    return vec4f(light.ka * returnColor * ambientColor, 1.0f);
+                    
+                    payload.color = localIllum;
+
+                    var reflectionRay: Ray;
+                    reflectionRay.origin = ray.origin + minDist * ray.dir;
+
+                    var normal: vec3f;
+                    
+                    if (minIdx == 0)
+                    {
+                        normal = normalize(reflectionRay.origin - sphere.center);
+                    }
+                    else if (minIdx == 1)
+                    {
+                        normal = normalize(reflectionRay.origin - sphere2.center);
+                    }
+                    else
+                    {
+                        normal = vec3f(0.0f, -1.0f, 0.0f);
+                    }
+
+                    reflectionRay.dir = normalize(ray.dir - 2.0 * dot(ray.dir, normal) * normal);
+                    reflectionRay.origin += reflectionRay.dir * 0.001;
+
+                    // reflectionRay.dir = ray.dir;
+                    // reflectionRay.dir = normalize(sphere2.center - reflectionRay.origin);
+
+                    payload.reflectionRay = reflectionRay;
+                    
+                    return payload;
+                }
+
+                fn getReturnColor(pixelVal: vec2f, cam: Camera) -> vec4f
+                {
+                    var eye = vec3f(389.486, -1.855, 0.573);
+
+                    // var triangle: Triangle;
+                    // triangle.v0 = vec3f(-100.0, 100.0, 100.0);
+                    // triangle.v1 = vec3f(100.0, 100.0, 100.0);
+                    // triangle.v2 = vec3f(0.0, -100.0, 100.0);
+                    // triangle.color = vec3f(0.0f, 0.0f, 1.0f);
+
+                    var sphere: Sphere;
+                    sphere.radius = 6.0f;
+                    sphere.center = vec3f(6.11, 5.0, 6.0);
+                    // sphere.center = vec3f(50.361, -10.813, 0.124);
+                    sphere.color = vec3f(0.0f, 0.0f, 0.0f);
+                    sphere.kr = 0.9;
+                    sphere.kt = 0.0;
+
+                    var sphere2: Sphere;
+                    sphere2.radius = 8.0f;
+                    sphere2.center = vec3f(11.361, -2.813, 0.124);
+                    sphere2.color =  vec3f(0.8f, 0.0f, 0.0f);
+                    sphere2.kr = 0.0;
+                    sphere2.kt = 0.0;
+
+                    var quad: Quad;
+                    // quad = Quad(
+                    //     vec3<f32>(30.0, 20.0f, 3000.0), // First vertex of the quad
+                    //     vec3<f32>( 30.0, 20.0f, 0.0), // Second vertex
+                    //     quadRefVertex, // Third vertex
+                    //     vec3<f32>(-30.0, 20.0f,  3000.0), // Fourth vertex
+                    //     vec3<f32>(0.0, -1.0, 0.0),    // Normal vector of the plane (pointing up)
+                    //     vec3<f32>(1.0f, 1.0f, 1.0f), // color
+                    //     0.0, // kr
+                    //     0.0  // kt
+                    // );
+
+                    quad = Quad(
+                        vec3<f32>(300.0, 20.0f, 6000.0), // First vertex of the quad
+                        vec3<f32>( 300.0, 20.0f, -3000.0), // Second vertex
+                        quadRefVertex, // Third vertex
+                        vec3<f32>(-30.0, 20.0f,  6000.0), // Fourth vertex
+                        vec3<f32>(0.0, -1.0, 0.0),    // Normal vector of the plane (pointing up)
+                        vec3<f32>(1.0f, 1.0f, 1.0f), // color
+                        0.0, // kr
+                        0.0  // kt
+                    );
+
+                    var view = viewTransformMatrix(
+                        eye,
+                        sphere2.center,
+                        vec3f(0.0f, 1.0f, 0.0f)
+                    );
+
+                    var rayDir : vec3f = normalize(vec3f(pixelVal, cam.focalLength));
+
+                    var ray: Ray;
+                    ray.origin = vec3f(0.0f);
+                    ray.dir = rayDir;
+
+                    sphere.center = (view * vec4f(sphere.center, 1.0f)).xyz;
+                    sphere2.center = (view * vec4f(sphere2.center, 1.0f)).xyz;
+                    // TODO: Why are why not converting quad to view space
+
+                    var finalColor = vec4f(0.0);
+                    var kr = 1.0;
+                    for (var depth: u32 = 1; depth < 3; depth++)
+                    {
+                        var payload = illuminate(ray, cam.focalLength, sphere, sphere2, quad);
+                        finalColor += kr * payload.color;
+                        ray = payload.reflectionRay;
+
+                        if (!payload.intersection)
+                        {
+                            if (depth == 2)
+                            {
+                                return vec4f(1.0, 0.0, 1.0, 1.0);
+                            }
+                            break;
+                        }
+                        else if (payload.nextKr == 0.0)
+                        {
+                            if (depth == 2) {return vec4f(0.0, 1.0, 0.0, 1.0);};
+                            break;
+                        }
+                        else
+                        {
+                            if (depth == 2) {return vec4f(1.0);};
+                        }
+
+                        kr = payload.nextKr;
+                    }
+
+                    finalColor.a = 1.0;
+
+                    return finalColor;
                 }
 
                 fn random(seed: f32) -> f32
