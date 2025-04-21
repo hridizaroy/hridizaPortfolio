@@ -122,7 +122,8 @@ export class Renderer
                     radius: f32,
                     color: vec3f,
                     kr: f32,
-                    kt: f32
+                    kt: f32,
+                    refractionIdx: f32,
                 };
 
                 struct Triangle
@@ -175,7 +176,8 @@ export class Renderer
                     normal: vec3<f32>, // Normal to the plane,
                     color: vec3<f32>,
                     kr: f32,
-                    kt: f32
+                    kt: f32,
+                    refractionIdx: f32
                 };
 
                 fn intersect_ray_plane(ray: Ray, plane_point: vec3<f32>, plane_normal: vec3<f32>) -> f32 {
@@ -317,6 +319,7 @@ export class Renderer
                     return -1.0; // The ray doesn't hit the triangle
                 }
 
+                // TODO: Return both hit distances
                 fn sphereRayIntersectDist(ray: Ray, sphere: Sphere) -> f32
                 {
                     var raySphereToCam: vec3f = ray.origin - sphere.center;
@@ -332,9 +335,15 @@ export class Renderer
                     }
 
                     var closestT: f32 = (-b - sqrt(discriminant)) / (2.0f * a);
+                    var t2: f32 = (-b + sqrt(discriminant)) / (2.0f * a);
 
                     // Make sure that the hit is in front of the camera
-                    return select(-1.0f, closestT, closestT > 0.0f);
+                    if (closestT <= 0.09 && t2 <= 0.09)
+                    {
+                        return -1.0f;
+                    }
+
+                    return select(t2, closestT, closestT > 0.05f);
                 }
 
                 fn reflect(I: vec3<f32>, N: vec3<f32>) -> vec3<f32>
@@ -366,12 +375,45 @@ export class Renderer
                     intersection: bool,
                     color: vec4f,
                     reflectionRay: Ray,
-                    nextKr: f32
+                    nextKr: f32,
+                    transmissionRay: Ray,
+                    nextKt: f32
                 }
+
+                fn calculateTransmissionRay(ir1: f32, ir2: f32, iRay: vec3f, n: vec3f) -> vec3f
+                {
+                    var indexRefRatio = ir1/ir2;
+                    var cosTi = dot(-iRay, n);
+                    var sin2Tt = pow(indexRefRatio, 2.0f) * (1.0f - pow(cosTi, 2.0f));
+
+                    var transmissionRay = (indexRefRatio) * iRay + 
+                                            (indexRefRatio * cosTi - sqrt(1.0f - sin2Tt)) * n;
+
+                    return transmissionRay;
+                }  
+                
+                fn calculateTransmissionRay2(ir1: f32, ir2: f32, iRay: vec3f, n: vec3f) -> vec3f
+                {
+                    // Assume all vectors are normalized
+                    var theta1 = acos(dot(-iRay, n));
+                    var sinTheta2 = ir1 * sin(theta1)/ir2;
+                    
+                    if (sinTheta2 > 1.0f)
+                    {
+                        return vec3(0.0f);
+                    }
+                    
+                    var theta2 = asin(sinTheta2);
+
+                    var rightDir = normalize(cross(n, cross(iRay, n)));
+                    var transmissionRay: vec3f = cos(theta2) * (-n) + sin(theta2) * rightDir;
+
+                    return normalize(transmissionRay);
+                }  
                 
                 const quadRefVertex: vec3f = vec3<f32>(-30.0, 20.0f, -3000.0);
                 const quadWidth = 60.0f;
-                const quadLength = 3000.0f;
+                const quadLength = 6000.0f;
 
                 const MAX_DEPH: u32 = 10;
                 fn illuminate(ray: Ray, focalLength: f32,
@@ -444,41 +486,44 @@ export class Renderer
                     light.color = vec3f(1.0f, 1.0f, 1.0f);
                     light.ka = 0.1f;
                     light.kd = 0.5f;
-                    light.ks = 0.4f;
+                    light.ks = 0.15f;
 
                     var light2: Light;
                     light2.position = vec3f(0.0f, -50.0, -30.0);
                     light2.intensity = 2.0f;
                     light2.color = vec3f(1.0f, 1.0f, 1.0f);
 
-                    var newRay: Ray;
-                    newRay.origin = ray.origin + minDist * ray.dir;
-                    newRay.dir = normalize(light.position - newRay.origin);
+                    var shadowRay: Ray;
+                    shadowRay.origin = ray.origin + minDist * ray.dir;
+                    shadowRay.dir = normalize(light.position - shadowRay.origin);
 
                     if (minIdx == 0)
                     {
                         returnColor = sphere.color * light.intensity;
-                        newRay.origin += normalize(newRay.origin - sphere.center) * 0.001;
+                        shadowRay.origin += normalize(shadowRay.origin - sphere.center) * 0.001;
                         payload.nextKr = sphere.kr;
+                        payload.nextKt = sphere.kt;
                     }
                     else if (minIdx == 1)
                     {
                         returnColor = sphere2.color * light.intensity;
-                        newRay.origin += normalize(newRay.origin - sphere2.center) * 0.001;
+                        shadowRay.origin += normalize(shadowRay.origin - sphere2.center) * 0.001;
                         payload.nextKr = sphere2.kr;
+                        payload.nextKt = sphere2.kt;
                     }
                     else
                     {
                         returnColor = quad.color * light.intensity;
-                        newRay.origin += vec3f(0.0f, -0.1, 0.0f);
+                        shadowRay.origin += vec3f(0.0f, -0.1, 0.0f);
                         payload.nextKr = quad.kr;
+                        payload.nextKt = quad.kt;
                     }
 
-                    var lightHitDist = max(0.0f, length(light.position - newRay.origin));
-                    hitDist1 = max(0.0f, sphereRayIntersectDist(newRay, sphere));
-                    hitDist2 = max(0.0f, sphereRayIntersectDist(newRay, sphere2));
+                    var lightHitDist = max(0.0f, length(light.position - shadowRay.origin));
+                    hitDist1 = max(0.0f, sphereRayIntersectDist(shadowRay, sphere));
+                    hitDist2 = max(0.0f, sphereRayIntersectDist(shadowRay, sphere2));
 
-                    var quadData2: QuadData = intersect_ray_quad(newRay, quad);
+                    var quadData2: QuadData = intersect_ray_quad(shadowRay, quad);
                     hitDist3 = max(0.0f, quadData2.hitDist);
 
                     var dist2: array<f32, 4> = array<f32, 4>(hitDist1, hitDist2, hitDist3, lightHitDist);
@@ -503,11 +548,11 @@ export class Renderer
                         var illumData: IllumData;
                         if (minIdx == 0)
                         {
-                            illumData.normal = normalize(newRay.origin - sphere.center);
+                            illumData.normal = normalize(shadowRay.origin - sphere.center);
                         }
                         else if (minIdx == 1)
                         {
-                            illumData.normal = normalize(newRay.origin - sphere2.center);
+                            illumData.normal = normalize(shadowRay.origin - sphere2.center);
                         }
                         else if (minIdx == 2)
                         {
@@ -560,7 +605,7 @@ export class Renderer
                             }
                         }
 
-                        illumData.S = normalize(light.position - newRay.origin);
+                        illumData.S = normalize(light.position - shadowRay.origin);
                         illumData.V = -ray.dir;
                         illumData.R = reflect(illumData.S, illumData.normal);
                         illumData.H = (illumData.S + illumData.normal)/2.0f;
@@ -583,7 +628,7 @@ export class Renderer
                     }
 
                     
-                    payload.color = localIllum;
+                    payload.color = (1.0f - payload.nextKt) * localIllum;
 
                     var reflectionRay: Ray;
                     reflectionRay.origin = ray.origin + minDist * ray.dir;
@@ -607,6 +652,37 @@ export class Renderer
                     reflectionRay.origin += normal * 1e-4;
 
                     payload.reflectionRay = reflectionRay;
+
+                    // transmission ray
+                    var transmissionRay: Ray;
+
+                    var ir1 = 1.0;
+                    var ir2 = 0.95;
+                    
+                    transmissionRay.origin = ray.origin + minDist * ray.dir;
+
+                    // If we are currently inside
+                    if (dot(normal, ray.dir) > 0.0f)
+                    {
+                        normal = -normal;
+                        ir1 = 0.95;
+                        ir2 = 1.0;
+
+                        transmissionRay.origin += -normal * 0.001;
+                    }
+                    else
+                    {
+                        transmissionRay.origin += normal * 0.001;
+                    }
+
+                    transmissionRay.dir = calculateTransmissionRay2(ir1, ir2, ray.dir, normal);
+
+                    if (all(transmissionRay.dir == vec3f(0.0f)))
+                    {
+                        transmissionRay = reflectionRay;
+                    }
+
+                    payload.transmissionRay = transmissionRay;
                     
                     return payload;
                 }
@@ -617,29 +693,31 @@ export class Renderer
 
                     var sphere: Sphere;
                     sphere.radius = 6.0f;
-                    sphere.center = vec3f(6.11, 5.0, 6.0);
-                    // sphere.center = vec3f(50.361, -10.813, 0.124);
+                    sphere.center = vec3f(-10.0, 5.0, 8.0);
                     sphere.color = vec3f(0.0f, 0.0f, 0.0f);
                     sphere.kr = 0.9;
                     sphere.kt = 0.0;
+                    sphere.refractionIdx = 1.0f;
 
                     var sphere2: Sphere;
                     sphere2.radius = 8.0f;
                     sphere2.center = vec3f(11.361, -2.813, 0.124);
-                    sphere2.color =  vec3f(0.8f, 0.0f, 0.0f);
+                    sphere2.color =  vec3f(0.0f, 0.0f, 0.2f);
                     sphere2.kr = 0.0;
-                    sphere2.kt = 0.0;
+                    sphere2.kt = 0.8;
+                    sphere2.refractionIdx = 1.0f;
 
                     var quad: Quad;
                     quad = Quad(
                         vec3<f32>(30.0, 20.0f, 3000.0), // First vertex of the quad
-                        vec3<f32>( 30.0, 20.0f, 0.0), // Second vertex
+                        vec3<f32>( 30.0, 20.0f, -3000.0), // Second vertex
                         quadRefVertex, // Third vertex
                         vec3<f32>(-30.0, 20.0f,  3000.0), // Fourth vertex
                         vec3<f32>(0.0, -1.0, 0.0),    // Normal vector of the plane (pointing up)
                         vec3<f32>(1.0f, 1.0f, 1.0f), // color
                         0.0, // kr
-                        0.0  // kt
+                        0.0,  // kt,
+                        1.0f // index of refraction
                     );
 
                     var view = viewTransformMatrix(
@@ -654,12 +732,15 @@ export class Renderer
                     ray.origin = vec3f(0.0f);
                     ray.dir = rayDir;
 
+                    var transmissionRay: Ray;
+
                     sphere.center = (view * vec4f(sphere.center, 1.0f)).xyz;
                     sphere2.center = (view * vec4f(sphere2.center, 1.0f)).xyz;
                     // TODO: Why are why not converting quad to view space
 
                     var finalColor = vec4f(0.0);
                     var kr = 1.0;
+                    var kt = 1.0;
                     var focalLength = cam.focalLength;
                     for (var depth: u32 = 1; depth < MAX_DEPH; depth++)
                     {
@@ -667,13 +748,75 @@ export class Renderer
                         focalLength = 0.0; // only use focalLength for first ray (originating from camera)
                         finalColor += kr * payload.color;
                         ray = payload.reflectionRay;
+                        transmissionRay = payload.transmissionRay;
 
-                        if (!payload.intersection || payload.nextKr == 0.0)
+                        kt = payload.nextKt;
+                        
+                        // TODO: Need to find a way to scale/loop this
+                        if (kt > 0.0f)
+                        {
+                            var transmissionPayload = illuminate(transmissionRay, focalLength, sphere, sphere2, quad);
+                            transmissionRay = transmissionPayload.transmissionRay;
+
+                            finalColor += kt * transmissionPayload.color;
+
+                            if (transmissionPayload.nextKr > 0.0f)
+                            {
+                                var refPayload = illuminate(transmissionPayload.reflectionRay, focalLength, sphere, sphere2, quad);
+                                finalColor += kt * refPayload.color;
+                            }
+
+                            if (transmissionPayload.nextKt > 0.0f)
+                            {
+                                transmissionPayload = illuminate(transmissionRay, focalLength, sphere, sphere2, quad);
+                            
+                                finalColor += kt * transmissionPayload.color;
+    
+                                if (transmissionPayload.nextKr > 0.0f)
+                                {
+                                    var reflectionRay = transmissionPayload.reflectionRay;
+                                    var refPayload = illuminate(reflectionRay, focalLength, sphere, sphere2, quad);
+    
+                                    finalColor += kt * transmissionPayload.nextKr * refPayload.color;
+
+                                    if (refPayload.nextKr > 0.0)
+                                    {
+                                        var refPayload2 = illuminate(refPayload.reflectionRay, focalLength, sphere, sphere2, quad);
+                                        finalColor += kt * refPayload.nextKr * refPayload2.color;
+                                    }
+
+                                    if (refPayload.nextKt > 0.0)
+                                    {
+                                        transmissionPayload = illuminate(refPayload.transmissionRay, focalLength, sphere, sphere2, quad);
+
+                                        finalColor += kt * transmissionPayload.color;
+
+                                        if (transmissionPayload.nextKr > 0.0f)
+                                        {
+                                            var refPayload = illuminate(transmissionPayload.reflectionRay, focalLength, sphere, sphere2, quad);
+                                            finalColor += kt * refPayload.color;
+                                        }
+
+                                        if (transmissionPayload.nextKt > 0.0f)
+                                        {
+                                            transmissionPayload = illuminate(transmissionPayload.transmissionRay, focalLength, sphere, sphere2, quad);
+                                        
+                                            finalColor += kt * transmissionPayload.color;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // todo: Loop until you hit a non-transmissive object?
+                            // todo: probably need to do a separate loop for transmission
+                        }
+                        
+                        kr *= payload.nextKr;
+
+                        if (!payload.intersection || kr == 0.0f)
                         {
                             break;
                         }
-
-                        kr *= payload.nextKr;
                     }
 
                     finalColor.a = 1.0;
