@@ -95,7 +95,7 @@ export class Renderer
                 label: "Ray tracing shader",
                 code:
                 /* wgsl */ `
-                @group(0) @binding(0) var<uniform> scene: Scene;
+                @group(0) @binding(0) var<uniform> spheres: Spheres;
 
                 // TODO: Is using a TS var here okay?
                 const MAX_SIZE = ${this.MAX_SIZE};
@@ -103,18 +103,10 @@ export class Renderer
                 struct Ray
                 {
                     origin: vec3f,
-                    dir: vec3f
+                    dir: vec3f,
+                    exists: bool,
+                    k: f32
                 }
-
-                struct Scene
-                {
-                    numObjects : u32,
-                    sphereOffset: u32,
-                    planeOffset: u32,
-                    coneOffset: u32,
-
-                    data: array<vec4<f32>, MAX_SIZE / 4>
-                };
 
                 struct Sphere
                 {
@@ -143,6 +135,13 @@ export class Renderer
                     imageWidth: f32,
                     filmPlaneHeight: f32,
                     filmPlaneWidth: f32
+                };
+
+                
+                struct Spheres
+                {
+                    numObjects : f32,
+                    data: array<Sphere, MAX_SIZE>
                 };
 
                 @vertex
@@ -415,7 +414,7 @@ export class Renderer
                 const quadWidth = 60.0f;
                 const quadLength = 6000.0f;
 
-                const MAX_DEPH: u32 = 10;
+                const MAX_DEPH: u32 = 7;
                 fn illuminate(ray: Ray, focalLength: f32,
                     sphere: Sphere, sphere2: Sphere, quad: Quad
                 ) -> Payload
@@ -496,6 +495,7 @@ export class Renderer
                     var shadowRay: Ray;
                     shadowRay.origin = ray.origin + minDist * ray.dir;
                     shadowRay.dir = normalize(light.position - shadowRay.origin);
+                    shadowRay.exists = true;
 
                     if (minIdx == 0)
                     {
@@ -632,6 +632,7 @@ export class Renderer
 
                     var reflectionRay: Ray;
                     reflectionRay.origin = ray.origin + minDist * ray.dir;
+                    reflectionRay.exists = true;
 
                     var normal: vec3f;
                     
@@ -660,6 +661,7 @@ export class Renderer
                     var ir2 = 0.95;
                     
                     transmissionRay.origin = ray.origin + minDist * ray.dir;
+                    transmissionRay.exists = true;
 
                     // If we are currently inside
                     if (dot(normal, ray.dir) > 0.0f)
@@ -731,6 +733,8 @@ export class Renderer
                     var ray: Ray;
                     ray.origin = vec3f(0.0f);
                     ray.dir = rayDir;
+                    ray.exists = true;
+                    ray.k = 1.0;
 
                     var transmissionRay: Ray;
 
@@ -739,84 +743,132 @@ export class Renderer
                     // TODO: Why are why not converting quad to view space
 
                     var finalColor = vec4f(0.0);
-                    var kr = 1.0;
-                    var kt = 1.0;
                     var focalLength = cam.focalLength;
+                    
+                    const maxRays = u32(pow(2.0, f32(MAX_DEPH)));
+                    var prevOutputRays: array<Ray, maxRays>;
+                    var nextOutputRays: array<Ray, maxRays>;
+
+                    prevOutputRays[0] = ray;
+
+                    var numRays: u32 = 1;
                     for (var depth: u32 = 1; depth < MAX_DEPH; depth++)
                     {
-                        var payload = illuminate(ray, focalLength, sphere, sphere2, quad);
-                        focalLength = 0.0; // only use focalLength for first ray (originating from camera)
-                        finalColor += kr * payload.color;
-                        ray = payload.reflectionRay;
-                        transmissionRay = payload.transmissionRay;
+                        var nextNumRays: u32 = 0;
 
-                        kt = payload.nextKt;
-                        
-                        // TODO: Need to find a way to scale/loop this
-                        if (kt > 0.0f)
+                        for (var ii: u32 = 0; ii < numRays; ii++)
                         {
-                            var transmissionPayload = illuminate(transmissionRay, focalLength, sphere, sphere2, quad);
-                            transmissionRay = transmissionPayload.transmissionRay;
+                            var inputRay = prevOutputRays[ii];
 
-                            finalColor += kt * transmissionPayload.color;
-
-                            if (transmissionPayload.nextKr > 0.0f)
+                            if (!inputRay.exists)
                             {
-                                var refPayload = illuminate(transmissionPayload.reflectionRay, focalLength, sphere, sphere2, quad);
-                                finalColor += kt * refPayload.color;
+                                continue;
                             }
 
-                            if (transmissionPayload.nextKt > 0.0f)
+                            var payload = illuminate(inputRay, focalLength, sphere, sphere2, quad);
+                            finalColor += inputRay.k * payload.color;
+
+                            if (payload.nextKr == 0.0 && payload.nextKt == 0.0)
                             {
-                                transmissionPayload = illuminate(transmissionRay, focalLength, sphere, sphere2, quad);
+                                break;
+                            }
+
+                            if (payload.nextKr > 0.0)
+                            {
+                                nextOutputRays[nextNumRays] = payload.reflectionRay;
+                                nextOutputRays[nextNumRays].k = inputRay.k * payload.nextKr;
+                                nextNumRays++;
+                            }
                             
-                                finalColor += kt * transmissionPayload.color;
+                            if (payload.nextKt > 0.0)
+                            {
+                                nextOutputRays[nextNumRays] = payload.transmissionRay;
+                                nextOutputRays[nextNumRays].k = inputRay.k * payload.nextKt;
+                                nextNumRays++;
+                            }                            
+                        }
+
+                        numRays = nextNumRays;
+
+                        for (var ii: u32 = 0; ii < nextNumRays; ii++)
+                        {
+                            prevOutputRays[ii] = nextOutputRays[ii];
+                        }
+
+                        focalLength = 0.0; // only use focalLength for first ray (originating from camera)
+                        // var payload = illuminate(ray, focalLength, sphere, sphere2, quad);
+                        // focalLength = 0.0; // only use focalLength for first ray (originating from camera)
+                        // finalColor += kr * payload.color;
+                        // ray = payload.reflectionRay;
+                        // transmissionRay = payload.transmissionRay;
+
+                        // kt = payload.nextKt;
+                        
+                        // // TODO: Need to find a way to scale/loop this
+                        // if (kt > 0.0f)
+                        // {
+                        //     var transmissionPayload = illuminate(transmissionRay, focalLength, sphere, sphere2, quad);
+                        //     transmissionRay = transmissionPayload.transmissionRay;
+
+                        //     finalColor += kt * transmissionPayload.color;
+
+                        //     if (transmissionPayload.nextKr > 0.0f)
+                        //     {
+                        //         var refPayload = illuminate(transmissionPayload.reflectionRay, focalLength, sphere, sphere2, quad);
+                        //         finalColor += kt * refPayload.color;
+                        //     }
+
+                        //     if (transmissionPayload.nextKt > 0.0f)
+                        //     {
+                        //         transmissionPayload = illuminate(transmissionRay, focalLength, sphere, sphere2, quad);
+                            
+                        //         finalColor += kt * transmissionPayload.color;
     
-                                if (transmissionPayload.nextKr > 0.0f)
-                                {
-                                    var reflectionRay = transmissionPayload.reflectionRay;
-                                    var refPayload = illuminate(reflectionRay, focalLength, sphere, sphere2, quad);
+                        //         if (transmissionPayload.nextKr > 0.0f)
+                        //         {
+                        //             var reflectionRay = transmissionPayload.reflectionRay;
+                        //             var refPayload = illuminate(reflectionRay, focalLength, sphere, sphere2, quad);
     
-                                    finalColor += kt * transmissionPayload.nextKr * refPayload.color;
+                        //             finalColor += kt * transmissionPayload.nextKr * refPayload.color;
 
-                                    if (refPayload.nextKr > 0.0)
-                                    {
-                                        var refPayload2 = illuminate(refPayload.reflectionRay, focalLength, sphere, sphere2, quad);
-                                        finalColor += kt * refPayload.nextKr * refPayload2.color;
-                                    }
+                        //             if (refPayload.nextKr > 0.0)
+                        //             {
+                        //                 var refPayload2 = illuminate(refPayload.reflectionRay, focalLength, sphere, sphere2, quad);
+                        //                 finalColor += kt * refPayload.nextKr * refPayload2.color;
+                        //             }
 
-                                    if (refPayload.nextKt > 0.0)
-                                    {
-                                        transmissionPayload = illuminate(refPayload.transmissionRay, focalLength, sphere, sphere2, quad);
+                        //             if (refPayload.nextKt > 0.0)
+                        //             {
+                        //                 transmissionPayload = illuminate(refPayload.transmissionRay, focalLength, sphere, sphere2, quad);
 
-                                        finalColor += kt * transmissionPayload.color;
+                        //                 finalColor += kt * transmissionPayload.color;
 
-                                        if (transmissionPayload.nextKr > 0.0f)
-                                        {
-                                            var refPayload = illuminate(transmissionPayload.reflectionRay, focalLength, sphere, sphere2, quad);
-                                            finalColor += kt * refPayload.color;
-                                        }
+                        //                 if (transmissionPayload.nextKr > 0.0f)
+                        //                 {
+                        //                     var refPayload = illuminate(transmissionPayload.reflectionRay, focalLength, sphere, sphere2, quad);
+                        //                     finalColor += kt * refPayload.color;
+                        //                 }
 
-                                        if (transmissionPayload.nextKt > 0.0f)
-                                        {
-                                            transmissionPayload = illuminate(transmissionPayload.transmissionRay, focalLength, sphere, sphere2, quad);
+                        //                 if (transmissionPayload.nextKt > 0.0f)
+                        //                 {
+                        //                     transmissionPayload = illuminate(transmissionPayload.transmissionRay, focalLength, sphere, sphere2, quad);
                                         
-                                            finalColor += kt * transmissionPayload.color;
-                                        }
-                                    }
-                                }
-                            }
+                        //                     finalColor += kt * transmissionPayload.color;
+                        //                 }
+                        //             }
+                        //         }
+                        //     }
 
                             // todo: Loop until you hit a non-transmissive object?
                             // todo: probably need to do a separate loop for transmission
-                        }
+                        // }
                         
-                        kr *= payload.nextKr;
+                        // kr *= payload.nextKr;
 
-                        if (!payload.intersection || kr == 0.0f)
-                        {
-                            break;
-                        }
+                        // if (!payload.intersection || kr == 0.0f)
+                        // {
+                        //     break;
+                        // }
                     }
 
                     finalColor.a = 1.0;
@@ -923,6 +975,8 @@ export class Renderer
             size: this.uniforms.byteLength,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         });
+
+        // TODO: Write to unformbuffer with scene data
 
         // Write buffers
         this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
