@@ -32,7 +32,7 @@ export class Renderer
         // Pipeline
         this.loadShaders();
         this.createBuffers();
-        this.createPipeline();
+        await this.createPipeline();
 
         // Render
         this.createRenderPassDescriptor();
@@ -67,7 +67,7 @@ export class Renderer
 
     private connectCanvas()
     {
-        // // Connect canvas with GPU interface
+        // Connect canvas with GPU interface
         const context = this.canvas.getContext("webgpu");
 
         if (!context)
@@ -96,6 +96,9 @@ export class Renderer
                 code:
                 /* wgsl */ `
                 @group(0) @binding(0) var<uniform> spheres: Spheres;
+
+                @group(0) @binding(1) var mySampler: sampler;
+                @group(0) @binding(2) var myTexture: texture_2d<f32>;
 
                 // TODO: Is using a TS var here okay?
                 const MAX_SIZE = ${this.MAX_SIZE};
@@ -414,7 +417,7 @@ export class Renderer
                 const quadWidth = 60.0f;
                 const quadLength = 6000.0f;
 
-                const MAX_DEPH: u32 = 7;
+                const MAX_DEPTH: u32 = 7;
                 fn illuminate(ray: Ray, focalLength: f32,
                     sphere: Sphere, sphere2: Sphere, quad: Quad
                 ) -> Payload
@@ -481,7 +484,7 @@ export class Renderer
 
                     var light: Light;
                     light.position = vec3f(0.0f, -30.0, -20.0);
-                    light.intensity = 3.0f;
+                    light.intensity = 8.0f;
                     light.color = vec3f(1.0f, 1.0f, 1.0f);
                     light.ka = 0.1f;
                     light.kd = 0.5f;
@@ -489,7 +492,7 @@ export class Renderer
 
                     var light2: Light;
                     light2.position = vec3f(0.0f, -50.0, -30.0);
-                    light2.intensity = 2.0f;
+                    light2.intensity = 10.0f;
                     light2.color = vec3f(1.0f, 1.0f, 1.0f);
 
                     var shadowRay: Ray;
@@ -554,7 +557,7 @@ export class Renderer
                         {
                             illumData.normal = normalize(shadowRay.origin - sphere2.center);
                         }
-                        else if (minIdx == 2)
+                        else if (minIdx == 2) @diagnostic(off, derivative_uniformity)
                         {
                             illumData.normal = vec3f(0.0f, -1.0f, 0.0f);
 
@@ -564,27 +567,29 @@ export class Renderer
                             uv.y = uv.z / quadLength;
                             uv.z = 0.0f;
 
+                            // returnColor = textureSample(myTexture, mySampler, uv.xy).xyz * light.intensity;
+
                             var uvScale = 10.0f;
                             var scaledUV = uv * uvScale;
                             var uvFloor = floor(scaledUV);
 
-                            var minDist: f32 = 100.0f;
-                            for (var dx: f32 = -1.0; dx <= 1.0; dx+=1.0f)
-                            {
-                                for (var dy: f32 = -1.0; dy <= 1.0; dy+= 1.0f)
-                                {
-                                    var neighbor = uvFloor.xy + vec2f(dx, dy);
+                            // var minDist: f32 = 100.0f;
+                            // for (var dx: f32 = -1.0; dx <= 1.0; dx+=1.0f)
+                            // {
+                            //     for (var dy: f32 = -1.0; dy <= 1.0; dy+= 1.0f)
+                            //     {
+                            //         var neighbor = uvFloor.xy + vec2f(dx, dy);
 
-                                    var uvNoiseX: f32 = random2D(neighbor);
-                                    var uvNoiseY: f32 = random(uvNoiseX);
+                            //         var uvNoiseX: f32 = random2D(neighbor);
+                            //         var uvNoiseY: f32 = random(uvNoiseX);
         
-                                    var voronoiPoint = neighbor + vec2f(uvNoiseX, uvNoiseY);
+                            //         var voronoiPoint = neighbor + vec2f(uvNoiseX, uvNoiseY);
                                     
-                                    var currDist = length(voronoiPoint - scaledUV.xy);
+                            //         var currDist = length(voronoiPoint - scaledUV.xy);
 
-                                    minDist = min(minDist, currDist);
-                                }
-                            }
+                            //         minDist = min(minDist, currDist);
+                            //     }
+                            // }
 
                             // returnColor = vec3f(1.0 - minDist) * light.intensity;
 
@@ -745,14 +750,14 @@ export class Renderer
                     var finalColor = vec4f(0.0);
                     var focalLength = cam.focalLength;
                     
-                    const maxRays = u32(pow(2.0, f32(MAX_DEPH)));
+                    const maxRays = u32(pow(2.0, f32(MAX_DEPTH)));
                     var prevOutputRays: array<Ray, maxRays>;
                     var nextOutputRays: array<Ray, maxRays>;
 
                     prevOutputRays[0] = ray;
 
                     var numRays: u32 = 1;
-                    for (var depth: u32 = 1; depth < MAX_DEPH; depth++)
+                    for (var depth: u32 = 1; depth < MAX_DEPTH; depth++)
                     {
                         var nextNumRays: u32 = 0;
 
@@ -768,7 +773,8 @@ export class Renderer
                             var payload = illuminate(inputRay, focalLength, sphere, sphere2, quad);
                             finalColor += inputRay.k * payload.color;
 
-                            if (payload.nextKr == 0.0 && payload.nextKt == 0.0)
+                            if (!payload.intersection || 
+                                (payload.nextKr == 0.0 && payload.nextKt == 0.0))
                             {
                                 break;
                             }
@@ -796,79 +802,6 @@ export class Renderer
                         }
 
                         focalLength = 0.0; // only use focalLength for first ray (originating from camera)
-                        // var payload = illuminate(ray, focalLength, sphere, sphere2, quad);
-                        // focalLength = 0.0; // only use focalLength for first ray (originating from camera)
-                        // finalColor += kr * payload.color;
-                        // ray = payload.reflectionRay;
-                        // transmissionRay = payload.transmissionRay;
-
-                        // kt = payload.nextKt;
-                        
-                        // // TODO: Need to find a way to scale/loop this
-                        // if (kt > 0.0f)
-                        // {
-                        //     var transmissionPayload = illuminate(transmissionRay, focalLength, sphere, sphere2, quad);
-                        //     transmissionRay = transmissionPayload.transmissionRay;
-
-                        //     finalColor += kt * transmissionPayload.color;
-
-                        //     if (transmissionPayload.nextKr > 0.0f)
-                        //     {
-                        //         var refPayload = illuminate(transmissionPayload.reflectionRay, focalLength, sphere, sphere2, quad);
-                        //         finalColor += kt * refPayload.color;
-                        //     }
-
-                        //     if (transmissionPayload.nextKt > 0.0f)
-                        //     {
-                        //         transmissionPayload = illuminate(transmissionRay, focalLength, sphere, sphere2, quad);
-                            
-                        //         finalColor += kt * transmissionPayload.color;
-    
-                        //         if (transmissionPayload.nextKr > 0.0f)
-                        //         {
-                        //             var reflectionRay = transmissionPayload.reflectionRay;
-                        //             var refPayload = illuminate(reflectionRay, focalLength, sphere, sphere2, quad);
-    
-                        //             finalColor += kt * transmissionPayload.nextKr * refPayload.color;
-
-                        //             if (refPayload.nextKr > 0.0)
-                        //             {
-                        //                 var refPayload2 = illuminate(refPayload.reflectionRay, focalLength, sphere, sphere2, quad);
-                        //                 finalColor += kt * refPayload.nextKr * refPayload2.color;
-                        //             }
-
-                        //             if (refPayload.nextKt > 0.0)
-                        //             {
-                        //                 transmissionPayload = illuminate(refPayload.transmissionRay, focalLength, sphere, sphere2, quad);
-
-                        //                 finalColor += kt * transmissionPayload.color;
-
-                        //                 if (transmissionPayload.nextKr > 0.0f)
-                        //                 {
-                        //                     var refPayload = illuminate(transmissionPayload.reflectionRay, focalLength, sphere, sphere2, quad);
-                        //                     finalColor += kt * refPayload.color;
-                        //                 }
-
-                        //                 if (transmissionPayload.nextKt > 0.0f)
-                        //                 {
-                        //                     transmissionPayload = illuminate(transmissionPayload.transmissionRay, focalLength, sphere, sphere2, quad);
-                                        
-                        //                     finalColor += kt * transmissionPayload.color;
-                        //                 }
-                        //             }
-                        //         }
-                        //     }
-
-                            // todo: Loop until you hit a non-transmissive object?
-                            // todo: probably need to do a separate loop for transmission
-                        // }
-                        
-                        // kr *= payload.nextKr;
-
-                        // if (!payload.intersection || kr == 0.0f)
-                        // {
-                        //     break;
-                        // }
                     }
 
                     finalColor.a = 1.0;
@@ -916,22 +849,82 @@ export class Renderer
                     let w : f32 = cam.filmPlaneWidth/cam.imageWidth;
                     let h : f32 = cam.filmPlaneHeight/cam.imageHeight;
 
-                    var color: vec4f = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
+                    // var color: vec4f = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
 
-                    var numIters: f32 = 100.0f;
-                    for (var ii: f32 = 0.0f; ii < numIters; ii += 1.0f)
-                    {
-                        var xVal: f32 = random(ii * 2.0f);
-                        var yVal: f32 = random(ii * 2.0f + 1.0f);
+                    // var numIters: f32 = 20.0f;
+                    // for (var ii: f32 = 0.0f; ii < numIters; ii += 1.0f)
+                    // {
+                    //     var xVal: f32 = random(ii * 2.0f);
+                    //     var yVal: f32 = random(ii * 2.0f + 1.0f);
 
-                        let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
-                                    (fragCoord.y - resolution.y * 0.5f) * h)
-                                    + vec2f(0.1 * w, 0.1 * h);
+                    //     let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
+                    //                 + vec2f(xVal * w, yVal * h);
                         
-                        color += getReturnColor(pixelVal, cam);
+                    //     color += getReturnColor(pixelVal, cam);
+                    // }
+
+                    // color = color/numIters;
+
+                    let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+                                    (fragCoord.y - resolution.y * 0.5f) * h)
+                                    + vec2f(0.5 * w, 0.5 * h);
+                    
+                    var color: vec4f = getReturnColor(pixelVal, cam);
+
+                    return color;
+
+                    var logLumSum = 0.0;
+                    var delta = 0.00001;
+
+                    var irradiance: vec4f = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
+
+                    var ldmax = delta;
+
+                    for (var x = 0.0; x < resolution.x; x += 1.0)
+                    {
+                        for (var y = 0.0; y < resolution.y; y += 1.0)
+                        {
+                            let pixelVal = vec2f((x - resolution.x * 0.5f) * w,
+                                    (y - resolution.y * 0.5f) * h)
+                                    + vec2f(0.5 * w, 0.5 * h);
+                        
+                            var color: vec4f = getReturnColor(pixelVal, cam);
+                            var luminance = 0.27 * color.r + 0.67 * color.g + 0.06 * color.b;
+
+                            ldmax = max(luminance, ldmax);
+
+                            logLumSum += log(luminance + delta);
+
+                            if (x == fragCoord.x && y == fragCoord.y)
+                            {
+                                irradiance = color;
+                            }
+                        }
+                    }
+                    
+                    var targetRGB: vec4f;
+                    var wardTR: bool = true;
+
+                    var lwa = exp(1.0/(resolution.x * resolution.y) * logLumSum);
+
+                    if (wardTR)
+                    {
+                        // Ward TR
+                        var sf = pow((1.219 + pow(ldmax/2.0, 0.4))/(1.219 + pow(lwa, 0.4)), 2.5);
+                        targetRGB = sf * irradiance;  
+                    }
+                    else
+                    {
+                        // Reinhard TR
+                        var a = 0.18;
+                        var scaledLum = (a / lwa) * irradiance;
+                        var reflectance = scaledLum/(1.0 + scaledLum);
+                        targetRGB = reflectance * ldmax;
                     }
 
-                    return color/numIters;                    
+                    // TODO: Check if the division is correct
+                    return targetRGB/ldmax;
                 }
                 `
             });
@@ -983,7 +976,7 @@ export class Renderer
         this.device.queue.writeBuffer(this.indexBuffer, 0, indices);
     }
 
-    private createPipeline()
+    private async createPipeline()
     {
         // Vertex Buffer Layout
         const vertexBufferLayout : GPUVertexBufferLayout =
@@ -1006,8 +999,52 @@ export class Renderer
                 binding: 0,
                 visibility: GPUShaderStage.VERTEX,
                 buffer: {} // Uniform buffer
+            },
+            {
+                binding: 1,
+                visibility: GPUShaderStage.FRAGMENT,
+                sampler:
+                {
+                    type: "filtering"
+                }
+            },
+            {
+                binding: 2,
+                visibility: GPUShaderStage.FRAGMENT,
+                texture:
+                {
+                    sampleType: 'float',
+                    viewDimension: '2d',
+                    multisampled: false,
+                }
             }]
         });
+
+        const sampler = this.device.createSampler();
+
+        const response = await fetch('./flowers.jpg');
+        const blob = await response.blob();
+        const imageBitmap = await createImageBitmap(blob);
+
+        const texture = this.device.createTexture(
+            {
+                label: 'floor image',
+                size: [imageBitmap.width, imageBitmap.height, 1],
+                format: 'rgba8unorm',
+                usage:
+                GPUTextureUsage.TEXTURE_BINDING |
+                GPUTextureUsage.COPY_DST |
+                GPUTextureUsage.RENDER_ATTACHMENT
+            });
+        
+        this.device.queue.copyExternalImageToTexture
+        (
+            { source: imageBitmap },
+            { texture: texture },
+            [imageBitmap.width, imageBitmap.height]
+        );
+        
+        const textureView = texture.createView();
 
         // TODO: Should this be done here or elsewhere?
         this.bindGroup = this.device.createBindGroup(
@@ -1018,6 +1055,14 @@ export class Renderer
                 {
                     binding: 0,
                     resource: { buffer: this.uniformBuffer }
+                },
+                {
+                    binding: 1,
+                    resource: sampler
+                },
+                {
+                    binding: 2,
+                    resource: textureView
                 }
             ]
         });
