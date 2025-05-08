@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Project Info</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            max-width: 800px;
+            line-height: 1.6;
+            color: #333;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+        .links a {
+            display: inline-block;
+            margin-right: 15px;
+            color: #2980b9;
+            text-decoration: none;
+        }
+        .links a:hover {
+            text-decoration: underline;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>CSCI 711 Project: Creating art-directable rain using OpenUSD & Hydra</h1>
+
+    <div class="section">
+        <h2>Introduction</h2>
+        <p>
+            Most rendering systems for rain are based on Physics simulations.
+            The positions of the droplets are based on prior velocities, acceleration etc.
+            This requires keeping track of a lot of data and performing a lot of calculations at every step,
+            which can be expensive. It also doesn't provide a lot of control to the artist in terms of the
+            movement of the rain. The goal of this project is to create a system that will render rain
+            only using time data - without needing to keep track of velocities, acceleration etc.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>Architecture</h2>
+        <p>The project will utilize the concept of B-Spline curves to render rain.
+            The idea is that the artist can provide a set of control points, which
+            our program will interpolate with to create a curve. We will then sample
+            points along that curve to determine the positions of the droplets. We
+            will vary the sampling location along the curve based on the time/frame number.
+            We will render the droplets by using reflectance properties of water.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>System</h2>
+        <p>The project was built using OpenUSD and Hydra.
+            Universal Scene Description (USD) is a framework for
+            interchange of 3D computer graphics data, developed by Pixar Animation
+            Studios. Hydra is an open source rendering framework to 
+            transport live scene graph data to renderers. Since these technologies
+            are gaining increasing popularity in the animation industry, this project
+            benefitted from utilizing them. They also make it easy to work with different
+            renderers and 3D modelling software, making them very convenient platforms.
+            The project involved creating a custom USD Schema and a Hydra imaging adapter for art–directable rain.
+        </p>
+    </div>
+
+    <div class="section">
+        <h2>Results</h2>
+        <p>A snippet of the project shown rendered in usdview
+        </p>
+        <img src = "./results.gif" width="800px">
+        <p>Rendering Params</p>
+        <ul>
+            <li>Diffuse color: (0.1, 0.2, 0.5) (light blue)</li>
+            <li>Opacity: 0.2</li>
+            <li>Roughness: 0.05 (very smooth)</li>
+            <li>Metallic: 0.0</li>
+            <li>Specular: 1.0</li>
+            <li>IOR: 1.33 (Not shown in rasterized view)</li>
+            </li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Key Challenges</h2>
+        <ul>
+            <li>Navigating USD and Hydra Code Base</li>
+            <li>Compiling a USD schema plugin (C++ Plugin, Python Wrapper)</li>
+            <li>Figuring out which how to use the Point Instancer Prim</li>
+            <li>Figuring out how to get materials to work with a USD Prim</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>Future Work</h2>
+        <ul>
+            <li>Test rendering with a path traced renderer like RenderMan to show refraction</li>
+            <li>Update equation to take gravity into account</li>
+            <li>Use more complex shapes for the droplets</li>
+        </ul>
+    </div>
+
+</body>
+</html>
