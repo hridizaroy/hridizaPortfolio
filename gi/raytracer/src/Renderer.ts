@@ -19,6 +19,8 @@ export class Renderer
     private pipeline!: GPURenderPipeline;
     private renderPassDescriptor!: GPURenderPassDescriptor;
 
+    private outputTexture!: GPUTexture;
+
     private readonly MAX_SIZE : number = 100;
 
     constructor(private canvas: HTMLCanvasElement) {}
@@ -36,7 +38,7 @@ export class Renderer
 
         // Render
         this.createRenderPassDescriptor();
-        this.render();
+        await this.render();
     }
 
     // Setup
@@ -417,7 +419,7 @@ export class Renderer
                 const quadWidth = 60.0f;
                 const quadLength = 6000.0f;
 
-                const MAX_DEPTH: u32 = 2;
+                const MAX_DEPTH: u32 = 7;
                 fn illuminate(ray: Ray, focalLength: f32,
                     sphere: Sphere, sphere2: Sphere, quad: Quad
                 ) -> Payload
@@ -484,7 +486,7 @@ export class Renderer
 
                     var light: Light;
                     light.position = vec3f(0.0f, -30.0, -20.0);
-                    light.intensity = 8.0f;
+                    light.intensity = 5.0f;
                     light.color = vec3f(1.0f, 1.0f, 1.0f);
                     light.ka = 0.1f;
                     light.kd = 0.5f;
@@ -849,22 +851,30 @@ export class Renderer
                     let w : f32 = cam.filmPlaneWidth/cam.imageWidth;
                     let h : f32 = cam.filmPlaneHeight/cam.imageHeight;
 
-                    // var color: vec4f = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
+                    var color: vec4f = vec4f(0.0f, 0.0f, 0.0f, 0.0f);
 
-                    // var numIters: f32 = 20.0f;
-                    // for (var ii: f32 = 0.0f; ii < numIters; ii += 1.0f)
-                    // {
-                    //     var xVal: f32 = random(ii * 2.0f);
-                    //     var yVal: f32 = random(ii * 2.0f + 1.0f);
+                    var numIters: f32 = 1.0f;
+                    for (var ii: f32 = 0.0f; ii < numIters; ii += 1.0f)
+                    {
+                        var xVal: f32 = random(ii * 2.0f);
+                        var yVal: f32 = random(ii * 2.0f + 1.0f);
 
-                    //     let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
-                    //                 (fragCoord.y - resolution.y * 0.5f) * h)
-                    //                 + vec2f(xVal * w, yVal * h);
+                        let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
+                                    (fragCoord.y - resolution.y * 0.5f) * h)
+                                    + vec2f(xVal * w, yVal * h);
                         
-                    //     color += getReturnColor(pixelVal, cam);
-                    // }
+                        color += getReturnColor(pixelVal, cam);
+                    }
 
-                    // color = color/numIters;
+                    color = color/numIters;
+
+                    var temp: vec3f = color.rgb;
+                    color.r = temp.b;
+                    color.b = temp.r;
+
+                    color.a = 1.0;
+
+                    return color;
 
                     // let pixelVal = vec2f((fragCoord.x - resolution.x * 0.5f) * w,
                     //                 (fragCoord.y - resolution.y * 0.5f) * h)
@@ -1067,6 +1077,15 @@ export class Renderer
             ]
         });
 
+        const width = 500;
+        const height = 500;
+        this.outputTexture = this.device.createTexture(
+        {
+            size: [width, height],
+            format: 'bgra8unorm',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
+        });
+
         // Pipeline Layout
         const pipelineLayout = this.device.createPipelineLayout(
         {
@@ -1109,7 +1128,8 @@ export class Renderer
             label: "Render Pass Description",
             colorAttachments:
             [{
-                view: this.context.getCurrentTexture().createView(),
+                // view: this.context.getCurrentTexture().createView(),
+                view: this.outputTexture.createView(),
                 clearValue: [0.2, 0.2, 0.2, 1],
                 loadOp: "clear",
                 storeOp: "store",
@@ -1117,11 +1137,12 @@ export class Renderer
         };
     }
 
-    private render()
+    private async render()
     {
         // update view
         (this.renderPassDescriptor.colorAttachments as any)[0].view =
-            this.context.getCurrentTexture().createView();
+            this.outputTexture.createView();
+            // this.context.getCurrentTexture().createView();
 
         // create command buffer
         const encoder = this.device.createCommandEncoder();
@@ -1140,8 +1161,179 @@ export class Renderer
 
         pass.end();
 
+        const bytesPerPixel = 4;  // for rgba8unorm
+        const width = 500;
+        const height = 500;
+        const bytesPerRow = Math.ceil(width * bytesPerPixel / 256) * 256;  // must be 256-byte aligned
+
+        const buffer = this.device.createBuffer({
+            size: bytesPerRow * height,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        });
+
+        encoder.copyTextureToBuffer(
+            { texture: this.outputTexture },
+            { buffer, bytesPerRow },
+            [width, height, 1]
+        );
+
+
         // Finish command buffer and immediately submit it
         this.device.queue.submit([encoder.finish()]);
+
+        await buffer.mapAsync(GPUMapMode.READ);
+        const mapped = buffer.getMappedRange();
+        const data = new Uint8Array(mapped);
+
+        // Extract the pixel data (removing padding if needed)
+        const pixels = new Uint8Array(width * height * bytesPerPixel);
+        for (let y = 0; y < height; y++)
+        {
+            const row = data.subarray(y * bytesPerRow, y * bytesPerRow + width * bytesPerPixel);
+            pixels.set(row, y * width * bytesPerPixel);
+        }
+        buffer.unmap();
+
+        var logLumSum = 0.0;
+        var delta = 0.00001;
+
+        var lwmax = delta;
+
+        var ldmax = 1.0;
+        var bias = 0.85;
+        
+        var reinhard_pixel_x = 100;
+        var reinhard_pixel_y = 450;
+        var reinhard_pixel_key = 0;
+
+        for (var i = 0.0; i < width * height; i += 1.0)
+        {
+            const r = pixels[i * bytesPerPixel] / 255.0;
+            const g = pixels[i * bytesPerPixel + 1] / 255.0;
+            const b = pixels[i * bytesPerPixel + 2] / 255.0;
+            
+            const luminance = 0.27 * r + 0.67 * g + 0.06 * b;
+
+            if (luminance > lwmax)
+            {
+                lwmax = luminance;
+            }
+
+            logLumSum += Math.log(luminance + delta);
+
+            var y = Math.floor(i / width);
+            var x = i % width;
+
+            if (x == reinhard_pixel_x && y == reinhard_pixel_y)
+            {
+                reinhard_pixel_key = luminance;
+            }
+        }
+        
+        var trType = 0;
+
+        var lwa = Math.exp(1.0/(width * height) * logLumSum);
+
+        for (let y = 0; y < width * height; y++)
+        {
+            const row = pixels.subarray(y * bytesPerPixel, y * bytesPerPixel + 4);
+            const newRow = new Float32Array(4);
+
+            const r = row[0] / 255.0;
+            const g = row[1] / 255.0;
+            const b = row[2] / 255.0;
+
+            var lw = 0.27 * r + 0.67 * g + 0.06 * b;
+
+            if (trType == 0)
+            {
+                var adaptationLum = lwa;
+                
+                adaptationLum = 0.3;
+
+                // Ward TR
+                var sf = Math.pow((1.219 + Math.pow(ldmax/2.0, 0.4))/(1.219 + Math.pow(adaptationLum, 0.4)), 2.5);
+
+                newRow[0] = sf * r;
+                newRow[1] = sf * g;
+                newRow[2] = sf * b;
+
+                // divide by ldmax
+                newRow[0] /= ldmax;
+                newRow[1] /= ldmax;
+                newRow[2] /= ldmax;
+            }
+            else if (trType == 1)
+            {
+                // Reinhard TR
+                var a = 0.18;
+
+                var key = 0.05;
+
+                key = reinhard_pixel_key;
+                
+                var scale = a/key;
+
+                var scaledLumR = scale * r;
+                var scaledLumG = scale * g;
+                var scaledLumB = scale * b;
+
+                var reflectanceR = scaledLumR/(1.0 + scaledLumR);
+                var reflectanceG = scaledLumG/(1.0 + scaledLumG);
+                var reflectanceB = scaledLumB/(1.0 + scaledLumB);
+
+                newRow[0] = reflectanceR;
+                newRow[1] = reflectanceG;
+                newRow[2] = reflectanceB;
+            }
+            else
+            {
+                // Advanced logarithmic mapping
+                var lwPrime = lw/lwa;
+                var lwmaxPrime = lwmax/lwa;
+
+                var ld = 1.0 / Math.log10(lwmaxPrime + 1) * Math.log(lwPrime + 1)/Math.log(2 + 8 * Math.pow(lwPrime/lwmaxPrime, Math.log(bias)/Math.log(0.5)));
+
+                ld = ld * ldmax;
+                
+                var scale = ld/(lwPrime + 1e-7);
+
+                newRow[0] = scale * r;
+                newRow[1] = scale * g;
+                newRow[2] = scale * b;
+            }
+
+            // Clamp scaled values to [0, 1]
+            newRow[0] = Math.min(1.0, Math.max(0.0, newRow[0]));
+            newRow[1] = Math.min(1.0, Math.max(0.0, newRow[1]));
+            newRow[2] = Math.min(1.0, Math.max(0.0, newRow[2]));
+
+            const newRowInt = new Uint8Array(4);
+            newRowInt[0] = Math.floor(newRow[0] * 255);
+            newRowInt[1] = Math.floor(newRow[1] * 255);
+            newRowInt[2] = Math.floor(newRow[2] * 255);
+            newRowInt[3] = 255;
+
+            pixels.set(newRowInt, y * bytesPerPixel);
+        }
+
+        // Create an ImageData and put it on a canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        const imageData = new ImageData(new Uint8ClampedArray(pixels), width, height);
+        ctx?.putImageData(imageData, 0, 0);
+
+        // Convert canvas to data URL (PNG) and save
+        const dataURL = canvas.toDataURL('image/png');
+
+        // Example: trigger a download
+        const link = document.createElement('a');
+        link.href = dataURL;
+        link.download = 'output.png';
+        link.click();
+
 
         // Loop every frame
         requestAnimationFrame(() => this.render());
